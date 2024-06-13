@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+div {
+  background-color: transparent;
+  width: inherit;
+  height: inherit;
+}
+
+img {
+  width: inherit;
+  height: inherit;
+}

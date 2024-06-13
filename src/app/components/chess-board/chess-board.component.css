@@ -1,0 +1,60 @@
+:host {
+  display: block;
+}
+
+.row {
+  display: flex;
+  padding: 0;
+  margin: 0;
+}
+
+.square {
+  display: inline-flex;
+}
+
+.board {
+  display: block;
+}
+
+.square.black {
+  background: #b58863;
+}
+
+.square.white {
+  background: #f0d9b5;
+}
+
+.square.black.hightlight {
+  background-color: #E4B344;
+}
+
+.square.white.hightlight {
+  background: #FAD162;
+}
+
+.square.selected {
+  background: #949493;
+  opacity: 65%;
+}
+
+.square.drag-over {
+  background: red;
+}
+
+.ranks-files-border {
+  background: rgb(62, 97, 62);
+  font-family: 'Courier New', Courier, monospace;
+  color: white;
+  text-align: center;
+  vertical-align: middle;
+  cursor: default;
+}
+
+.chess-piece {
+  width: inherit;
+  height: inherit;
+}
+
+.cursor-ptr {
+  cursor: pointer;
+}
