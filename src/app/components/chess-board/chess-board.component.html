@@ -9,7 +9,7 @@
   </div>
 
   <!--Chess Board-->
-  <ng-container *ngIf="((board$ | async) ?? emptyBoard) as board">
+  <ng-container *ngIf="(board$ | async) as board">
     <div class="row" *ngFor="let rank of ranks; let rankIndex = index">
       <!--Left border with rank-->
       <div

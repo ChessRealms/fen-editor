@@ -27,7 +27,7 @@ export class ChessBoardComponent {
   @Input() borderSize: number;
   @Input() dragEnabled: boolean;
   @Input() isBlackView: boolean;
-  @Input() board$?: Observable<PieceEnum[]>;
+  @Input({ required: true }) board$!: Observable<PieceEnum[]>;
 
   @Output() readonly pieceDropped = new EventEmitter<SquareIndex>();
   @Output() readonly pieceDragged = new EventEmitter<PieceMove>();
