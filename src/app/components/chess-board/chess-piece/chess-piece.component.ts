@@ -12,11 +12,9 @@ import { PieceEnum } from '../../../types/piece-enum';
 })
 export class ChessPieceComponent {
   @Input() piece: PieceEnum;
-  @Input() dragOff: boolean;
 
   constructor() {
     this.piece = PieceEnum.WRook;
-    this.dragOff = true;
   }
 
   get wPawn() {

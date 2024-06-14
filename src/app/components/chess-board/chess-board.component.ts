@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { ChessPieceComponent } from './chess-piece/chess-piece.component';
 import { createEmptyBoard, files, ranks } from './utils/board-defaults';
-import { BehaviorSubject, Observable, Subject, takeUntil } from 'rxjs';
+import { Observable } from 'rxjs';
 import { SquareIndex } from '../../types/square-index';
 import { PieceEnum } from '../../types/piece-enum';
 import { FileRankIndexBySideColorPipe } from './utils/file-rank-index-by-side-color.pipe';
