@@ -29,6 +29,10 @@ export class AppComponent {
     this.board$ = new BehaviorSubject(this._board);
   }
 
+  get dragEnabled(): boolean {
+    return this.selectedPieceType == null || this.draggedPieceType != null
+  }
+
   get allPieceTypes(): PieceEnum[] {
     return [
       PieceEnum.BPawn,
@@ -50,10 +54,26 @@ export class AppComponent {
     return PieceEnum.NONE;
   }
 
+  actionBtnNgClass(value: PieceEnum | null): string {
+    return this.selectedPieceType == value ? 'action-btn-selected' : ''
+  }
+
+  setSelectedPieceValue(value: PieceEnum | null): void {
+    this.selectedPieceType = value;
+  }
+
+//#region Board management
   setPieceAtBoard(index: SquareIndex, piece: PieceEnum): void {
     this._board[index.value] = piece;
     this.board$.next(this._board);
   }
+
+  movePiece(move: PieceMove): void {
+    this._board[move.dst.value] = this._board[move.src.value];
+    this._board[move.src.value] = PieceEnum.NONE;
+    this.board$.next(this._board);
+  }
+//#endregion Board management
 
   squareClicked(index: SquareIndex): void {
     console.log('square-click', index);
@@ -89,12 +109,6 @@ export class AppComponent {
     }
 
     console.log('piece-dragged', move);
-  }
-
-  movePiece(move: PieceMove): void {
-    this._board[move.dst.value] = this._board[move.src.value];
-    this._board[move.src.value] = PieceEnum.NONE;
-    this.board$.next(this._board);
   }
 
   pieceDragStart(pieceType: PieceEnum): void {
