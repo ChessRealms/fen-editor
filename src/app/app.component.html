@@ -9,10 +9,11 @@
   [board$]="board$"
   [squareSize]="45"
   [isBlackView]="false"
-  [dragEnabled]="true"
-  (pieceMoved)="pieceMoved($event)"
-  (pieceDroppedAt)="pieceDropped($event)"
-  (clickedAtSquare)="squareClicked($event)"
+  [dragEnabled]="this.selectedPieceType == null || this.draggedPieceType != null"
+  (pieceDragged)="pieceDragged($event)"
+  (pieceDropped)="pieceDropped($event)"
+  (squareClick)="squareClicked($event)"
+  (squareMousePressured)="squareMousePressured($event)"
   />
 </div>
 <div class="actions-panel">
@@ -20,8 +21,24 @@
     <app-chess-piece
     draggable="true"
     [piece]="piece"
+    [ngClass]="selectedPieceType == piece ? 'action-btn-selected' : ''"
+    (click)="selectedPieceType = piece"
     (dragstart)="pieceDragStart(piece)"
     (dragend)="pieceDragEnd()"/>
+  </div>
+  <div
+  [ngClass]="selectedPieceType == null ? 'action-btn-selected' : ''"
+  (click)="selectedPieceType = null"
+  >
+    <img src="assets/hand.svg"/>
+  </div>
+  <div
+  [ngClass]="selectedPieceType == nonePiece ? 'action-btn-selected' : ''"
+  (click)="selectedPieceType = nonePiece"
+  (dragstart)="pieceDragStart(nonePiece)"
+    (dragend)="pieceDragEnd()"
+  >
+    <img src="assets/trash-bucket.svg"/>
   </div>
 </div>
 <router-outlet></router-outlet>

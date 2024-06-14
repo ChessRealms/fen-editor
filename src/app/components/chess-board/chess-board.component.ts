@@ -29,9 +29,13 @@ export class ChessBoardComponent {
   @Input() isBlackView: boolean;
   @Input() board$?: Observable<PieceEnum[]>;
 
-  @Output() readonly pieceDroppedAt = new EventEmitter<SquareIndex>();
-  @Output() readonly pieceMoved = new EventEmitter<PieceMove>();
-  @Output() readonly clickedAtSquare = new EventEmitter<SquareIndex>();
+  @Output() readonly pieceDropped = new EventEmitter<SquareIndex>();
+  @Output() readonly pieceDragged = new EventEmitter<PieceMove>();
+  @Output() readonly squareClick = new EventEmitter<SquareIndex>();
+
+  /** Emits `mouse-down` events. If `mouse-down` not realesed then emits `mouse-enter` event too. */
+  @Output() readonly squareMousePressured = new EventEmitter<SquareIndex>();
+  isMouseDown = false;
 
   selectedSquare: SquareIndex;
   dragOverSquare: SquareIndex;
@@ -62,27 +66,37 @@ export class ChessBoardComponent {
     return createEmptyBoard();
   }
 
-  squareClicked(index: SquareIndex): void {
-    this.clickedAtSquare.emit(index);
-  }
-
   indexFromFileRank(file: number, rank: number): SquareIndex {
     return SquareIndex.fromFileRank(file, rank);
   }
 
-//#region Square NG Classes
-  squareNgClass(index: SquareIndex): string[] {
-    return [
-      this.blackOrWhiteSquareNgClass(index),
-      this.currentSelectionSquareNgClass(index),
-      this.dragOverHightlightSquareNgClass(index)
-    ];
+  squareMouseDown(index: SquareIndex): void {
+    this.isMouseDown = true;
+    this.squareMousePressured.emit(index);
   }
 
+  squareMouseUp(): void {
+    this.isMouseDown = false;
+  }
+
+  squareMouseEnter(index: SquareIndex): void {
+    if (this.isMouseDown) {
+      this.squareMousePressured.emit(index);
+    }
+  }
+
+//#region Square NG Classes
   blackOrWhiteSquareNgClass(squareIndex: SquareIndex): string {
     return 'square ' + (squareIndex.rankIndex % 2 != 0
       ? squareIndex.fileIndex % 2 != 0 ? 'black' : 'white'
       : squareIndex.fileIndex % 2 == 0 ? 'black' : 'white');
+  }
+
+  squareNgClass(index: SquareIndex): string[] {
+    return [
+      this.blackOrWhiteSquareNgClass(index),
+      this.dragOverHightlightSquareNgClass(index)
+    ];
   }
 
   currentSelectionSquareNgClass(squareIndex: SquareIndex): string {
@@ -113,13 +127,13 @@ export class ChessBoardComponent {
 
   pieceDrop(index: SquareIndex) {
     if (this.selectedSquare.isValid()) {
-      this.pieceMoved.emit({
+      this.pieceDragged.emit({
         src: this.selectedSquare,
         dst: index
       });
     }
     else {
-      this.pieceDroppedAt.emit(index);
+      this.pieceDropped.emit(index);
     }
 
     this.pieceDragEnd();
@@ -137,6 +151,7 @@ export class ChessBoardComponent {
   pieceDragEnd() {
     this.selectedSquare = SquareIndex.createEmpty();
     this.dragOverSquare = SquareIndex.createEmpty();
+    this.isMouseDown = false;
   }
 //#endregion Piece Drag Events
 }

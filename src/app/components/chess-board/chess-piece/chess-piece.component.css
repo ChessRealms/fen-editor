@@ -6,9 +6,21 @@ div {
   background-color: transparent;
   width: inherit;
   height: inherit;
+
+  -webkit-user-drag: inherit;
+  user-select: inherit;
+  -moz-user-select: inherit;
+  -webkit-user-select: inherit;
+  -ms-user-select: inherit;
 }
 
 img {
   width: inherit;
   height: inherit;
+
+  -webkit-user-drag: inherit;
+  user-select: inherit;
+  -moz-user-select: inherit;
+  -webkit-user-select: inherit;
+  -ms-user-select: inherit;
 }

@@ -1,4 +1,4 @@
-<div class="board ranks-files-border" [style.width.px]="squareSize * 9">
+<div unselectable="on" class="board ranks-files-border" [style.width.px]="squareSize * 9">
   <!--Upper border with files-->
   <div class="row">
     <div [style.width.px]="borderSize"></div>
@@ -12,7 +12,11 @@
   <ng-container *ngIf="((board$ | async) ?? emptyBoard) as board">
     <div class="row" *ngFor="let rank of ranks; let rankIndex = index">
       <!--Left border with rank-->
-      <div [style.width.px]="borderSize" [style.height.px]="squareSize" [style.line-height.px]="squareSize">
+      <div
+      [style.width.px]="borderSize"
+      [style.height.px]="squareSize"
+      [style.line-height.px]="squareSize"
+      >
         {{ranks[rankIndex | fileRankIndexBySideColor: isBlackView ]}}
       </div>
       <!--Chess Row-->
@@ -22,17 +26,20 @@
         *ngIf="(indexFromFileRank(fileIndex, rankIndex) | squareIndexBySideColor: isBlackView) as squareIndex"
         [style.width.px]="squareSize"
         [style.height.px]="squareSize"
-        [ngClass]="blackOrWhiteSquareNgClass(squareIndex)"
-        (click)="squareClicked(squareIndex)">
+        [ngClass]="squareNgClass(squareIndex)"
+        (click)="squareClick.emit(squareIndex)"
+        (mousedown)="squareMouseDown(squareIndex)"
+        (mouseenter)="squareMouseEnter(squareIndex)"
+        (mouseup)="squareMouseUp()">
           <div
-          class="chess-piece"
+          class="chess-piece cursor-ptr"
           *ngIf="dragEnabled; else notDraggablePiece"
           (drop)="pieceDrop(squareIndex)"
           (dragover)="pieceDragOver($event, squareIndex)"
           (dragleave)="pieceDragLeave()">
             <app-chess-piece
-             class="chess-piece cursor-ptr"
              draggable="true"
+             [ngClass]="currentSelectionSquareNgClass(squareIndex)"
              *ngIf="board[squareIndex.value] != nonePiece"
              [piece]="board[squareIndex.value]"
              (dragstart)="pieceDragStart($event, squareIndex)"
@@ -42,14 +49,18 @@
             <div class="chess-piece">
               <app-chess-piece
               *ngIf="board[squareIndex.value] != nonePiece"
-              class="chess-piece cursor-ptr"
+              class="chess-piece not-draggable-img"
               [piece]="board[squareIndex.value]"/>
             </div>
           </ng-template>
         </div>
       </div>
       <!--Right border with rank-->
-      <div [style.width.px]="borderSize" [style.height.px]="squareSize" [style.line-height.px]="squareSize">
+      <div
+      [style.width.px]="borderSize"
+      [style.height.px]="squareSize"
+      [style.line-height.px]="squareSize"
+      >
         {{ranks[rankIndex | fileRankIndexBySideColor: isBlackView]}}
       </div>
     </div>

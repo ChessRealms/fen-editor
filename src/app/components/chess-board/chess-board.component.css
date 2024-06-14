@@ -14,6 +14,7 @@
 
 .board {
   display: block;
+  user-select: none;
 }
 
 .square.black {
@@ -32,7 +33,7 @@
   background: #FAD162;
 }
 
-.square.selected {
+.selected {
   background: #949493;
   opacity: 65%;
 }
@@ -57,4 +58,17 @@
 
 .cursor-ptr {
   cursor: pointer;
+}
+
+.not-draggable-img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+app-chess-piece {
+  width: inherit;
+  height: inherit;
 }
