@@ -1,25 +1,27 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { ChessBoardComponent } from './components/chess-board/chess-board.component';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { PieceEnum } from './types/piece-enum';
+import { PieceEnum } from './types/piece.enum';
 import { DefaultFenString, parseFenString } from './components/chess-board/utils/fen-string';
 import { SquareIndex } from './types/square-index';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
 import { PieceMove } from './types/piece-move';
+import { ChessBoard } from './types/chess-board';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule, RouterOutlet, ChessBoardComponent, ChessPieceComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+  styleUrl: './app.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
   title = 'fen-editor';
-  private _board: PieceEnum[];
-  board$: Subject<PieceEnum[]>;
+  private _board: ChessBoard;
+  board$: Subject<ChessBoard>;
 
   draggedPieceType: PieceEnum | null = null;
   selectedPieceType: PieceEnum | null = null;
@@ -33,21 +35,26 @@ export class AppComponent {
     return this.selectedPieceType == null || this.draggedPieceType != null
   }
 
-  get allPieceTypes(): PieceEnum[] {
+  get blackPieces(): PieceEnum[] {
     return [
       PieceEnum.BPawn,
       PieceEnum.BKnight,
       PieceEnum.BBishop,
       PieceEnum.BRook,
       PieceEnum.BQueen,
-      PieceEnum.BKing,
+      PieceEnum.BKing
+    ];
+  }
+
+  get whitePieces(): PieceEnum[] {
+    return [
       PieceEnum.WPawn,
       PieceEnum.WKnight,
       PieceEnum.WBishop,
       PieceEnum.WRook,
       PieceEnum.WQueen,
       PieceEnum.WKing
-    ];
+    ]
   }
 
   get nonePiece(): PieceEnum {
@@ -64,13 +71,12 @@ export class AppComponent {
 
 //#region Board management
   setPieceAtBoard(index: SquareIndex, piece: PieceEnum): void {
-    this._board[index.value] = piece;
+    this._board.setPieceAt(index, piece);
     this.board$.next(this._board);
   }
 
   movePiece(move: PieceMove): void {
-    this._board[move.dst.value] = this._board[move.src.value];
-    this._board[move.src.value] = PieceEnum.NONE;
+    this._board.movePiece(move);
     this.board$.next(this._board);
   }
 //#endregion Board management

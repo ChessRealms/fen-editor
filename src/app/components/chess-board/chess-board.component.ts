@@ -4,10 +4,11 @@ import { ChessPieceComponent } from './chess-piece/chess-piece.component';
 import { createEmptyBoard, files, ranks } from './utils/board-defaults';
 import { Observable } from 'rxjs';
 import { SquareIndex } from '../../types/square-index';
-import { PieceEnum } from '../../types/piece-enum';
+import { PieceEnum } from '../../types/piece.enum';
 import { FileRankIndexBySideColorPipe } from './utils/file-rank-index-by-side-color.pipe';
 import { SquareIndexBySideColorPipe } from './utils/square-index-by-side-color.pipe';
 import { PieceMove } from '../../types/piece-move';
+import { ChessBoard } from '../../types/chess-board';
 
 @Component({
   selector: 'app-chess-board',
@@ -27,7 +28,7 @@ export class ChessBoardComponent {
   @Input() borderSize: number;
   @Input() dragEnabled: boolean;
   @Input() isBlackView: boolean;
-  @Input({ required: true }) board$!: Observable<PieceEnum[]>;
+  @Input({ required: true }) board$!: Observable<ChessBoard>;
 
   @Output() readonly pieceDropped = new EventEmitter<SquareIndex>();
   @Output() readonly pieceDragged = new EventEmitter<PieceMove>();

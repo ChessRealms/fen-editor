@@ -1,44 +1,50 @@
-<div style="display: flex;">
-  <app-chess-board
-  [board$]="board$"
-  [squareSize]="45"
-  [isBlackView]="true"
-  [dragEnabled]="false"
-  />
-  <app-chess-board
-  [board$]="board$"
-  [squareSize]="45"
-  [isBlackView]="false"
-  [dragEnabled]="dragEnabled"
-  (pieceDragged)="pieceDragged($event)"
-  (pieceDropped)="pieceDropped($event)"
-  (squareClick)="squareClicked($event)"
-  (squareMousePressured)="squareMousePressured($event)"
-  />
+<div>
+  <div class="actions-panel">
+    <app-chess-piece
+      *ngFor="let piece of blackPieces"
+      draggable="true"
+      [piece]="piece"
+      [ngClass]="actionBtnNgClass(piece)"
+      (click)="setSelectedPieceValue(piece)"
+      (dragstart)="pieceDragStart(piece)"
+      (dragend)="pieceDragEnd()"/>
+  </div>
+  <div>
+    <app-chess-board
+      [board$]="board$"
+      [squareSize]="45"
+      [isBlackView]="false"
+      [dragEnabled]="dragEnabled"
+      (pieceDragged)="pieceDragged($event)"
+      (pieceDropped)="pieceDropped($event)"
+      (squareClick)="squareClicked($event)"
+      (squareMousePressured)="squareMousePressured($event)"/>
+  </div>
+  <div class="actions-panel">
+    <app-chess-piece
+      *ngFor="let piece of whitePieces"
+      draggable="true"
+      [piece]="piece"
+      [ngClass]="actionBtnNgClass(piece)"
+      (click)="setSelectedPieceValue(piece)"
+      (dragstart)="pieceDragStart(piece)"
+      (dragend)="pieceDragEnd()"/>
+    <div
+      [ngClass]="actionBtnNgClass(null)"
+      (click)="setSelectedPieceValue(null)">
+      <img src="assets/hand.svg"/>
+    </div>
+    <div
+      [ngClass]="actionBtnNgClass(nonePiece)"
+      (click)="setSelectedPieceValue(nonePiece)"
+      (dragstart)="pieceDragStart(nonePiece)"
+      (dragend)="pieceDragEnd()">
+      <img src="assets/trash-bucket.svg"/>
+    </div>
+  </div>
+
 </div>
 <div class="actions-panel">
-  <div *ngFor="let piece of allPieceTypes">
-    <app-chess-piece
-    draggable="true"
-    [piece]="piece"
-    [ngClass]="actionBtnNgClass(piece)"
-    (click)="setSelectedPieceValue(piece)"
-    (dragstart)="pieceDragStart(piece)"
-    (dragend)="pieceDragEnd()"/>
-  </div>
-  <div
-  [ngClass]="actionBtnNgClass(null)"
-  (click)="setSelectedPieceValue(null)"
-  >
-    <img src="assets/hand.svg"/>
-  </div>
-  <div
-  [ngClass]="actionBtnNgClass(nonePiece)"
-  (click)="setSelectedPieceValue(nonePiece)"
-  (dragstart)="pieceDragStart(nonePiece)"
-  (dragend)="pieceDragEnd()"
-  >
-    <img src="assets/trash-bucket.svg"/>
-  </div>
+
 </div>
 <router-outlet></router-outlet>

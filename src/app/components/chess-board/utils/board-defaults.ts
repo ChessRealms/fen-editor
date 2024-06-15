@@ -1,4 +1,4 @@
-import { PieceEnum } from "../../../types/piece-enum";
+import { PieceEnum } from "../../../types/piece.enum";
 
 export const files = "abcdefgh";
 export const ranks = "87654321";
