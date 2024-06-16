@@ -40,17 +40,17 @@
             <app-chess-piece
              draggable="true"
              [ngClass]="currentSelectionSquareNgClass(squareIndex)"
-             *ngIf="board[squareIndex.value] != nonePiece"
-             [piece]="board[squareIndex.value]"
+             *ngIf="board.getPieceAt(squareIndex) != nonePiece"
+             [piece]="board.getPieceAt(squareIndex)"
              (dragstart)="pieceDragStart($event, squareIndex)"
              (dragend)="pieceDragEnd()"/>
           </div>
           <ng-template #notDraggablePiece>
             <div class="chess-piece">
               <app-chess-piece
-              *ngIf="board[squareIndex.value] != nonePiece"
+              *ngIf="board.getPieceAt(squareIndex) != nonePiece"
               class="chess-piece not-draggable-img"
-              [piece]="board[squareIndex.value]"/>
+              [piece]="board.getPieceAt(squareIndex)"/>
             </div>
           </ng-template>
         </div>

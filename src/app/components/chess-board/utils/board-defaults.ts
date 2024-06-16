@@ -1,4 +1,4 @@
-import { PieceEnum } from "../../../types/piece-enum";
+import { PieceEnum } from "../../../types/piece.enum";
 
 export const files = "abcdefgh";
 export const ranks = "87654321";
@@ -26,5 +26,23 @@ export function parsePieceValue(piece: string) {
     case 'Q': return PieceEnum.WQueen;
     case 'K': return PieceEnum.WKing;
     default:  return PieceEnum.NONE;
+  }
+}
+
+export function pieceValueToString(piece: PieceEnum): string {
+  switch (piece) {
+    case PieceEnum.BPawn: return 'p';
+    case PieceEnum.BKnight: return 'n';
+    case PieceEnum.BBishop: return 'b';
+    case PieceEnum.BRook: return 'r';
+    case PieceEnum.BQueen: return 'q';
+    case PieceEnum.BKing: return 'k';
+    case PieceEnum.WPawn: return 'P';
+    case PieceEnum.WKnight: return 'N';
+    case PieceEnum.WBishop: return 'B';
+    case PieceEnum.WRook: return 'R';
+    case PieceEnum.WQueen: return 'Q';
+    case PieceEnum.WKing: return 'K';
+    default: return '';
   }
 }
