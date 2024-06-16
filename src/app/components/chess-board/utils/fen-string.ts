@@ -1,7 +1,8 @@
 import { ChessBoard } from "../../../types/chess-board";
 import { PieceEnum } from "../../../types/piece.enum";
+import { Position } from "../../../types/position";
 import { SquareIndex } from "../../../types/square-index";
-import { parsePieceValue } from "./board-defaults";
+import { parsePieceValue, pieceValueToString } from "./board-defaults";
 
 export const DefaultFenString = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -42,4 +43,37 @@ export function parseFenString(fen: string): ChessBoard {
   }
   while (i < fenBoardSlice.length);
   return board;
+}
+
+export function createFenString(board: ChessBoard): string {
+  let fen = '';
+  for (let rank = 0; rank < 8; ++rank) {
+    let rankStr = '';
+    let emptySquares = 0;
+    for (let file = 0; file < 8; ++file) {
+      const square = SquareIndex.fromFileRank(file, rank);
+      const piece = board.getPieceAt(square);
+      if (piece != PieceEnum.NONE) {
+        if (emptySquares > 0) {
+          rankStr += emptySquares.toString();
+          emptySquares = 0;
+        }
+
+        rankStr += pieceValueToString(piece);
+      }
+      else {
+        ++emptySquares;
+      }
+    }
+
+    if (emptySquares > 0) {
+      rankStr += emptySquares.toString();
+    }
+
+    fen += rankStr
+    if (rank < 7) {
+      fen += '/';
+    }
+  }
+  return fen;
 }

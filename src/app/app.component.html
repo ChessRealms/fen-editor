@@ -20,6 +20,9 @@
       (squareClick)="squareClicked($event)"
       (squareMousePressured)="squareMousePressured($event)"/>
   </div>
+  <div class="fen-container">
+    <input class="fen-textbox" [value]="fen" readonly/>
+  </div>
   <div class="actions-panel">
     <app-chess-piece
       *ngFor="let piece of whitePieces"
