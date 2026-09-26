@@ -1,18 +1,13 @@
-.actions-panel {
-  display: flex;
-  background-color: rgb(80, 126, 80);
-}
-
-.action-btn-selected {
-  background-color: gray;
-}
-
-.fen-container {
-  padding: 5px;
-}
-
-.fen-textbox {
-  width: 450px;
-  padding: 3px;
-  font-family: 'Courier New', Courier, monospace;
-}
+:host { display: block; }
+main { max-width: 38rem; margin: 2rem auto; padding: 0 1rem 2rem; }
+h1 { margin: 0 0 .5rem; font-size: 2rem; }
+header p { color: #46534a; line-height: 1.5; }
+.editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: .8rem; }
+.palette { display: grid; grid-template-columns: repeat(6, minmax(0, 3rem)); gap: .4rem; justify-content: center; }
+.piece-tool { width: 100%; min-width: 0; height: 3rem; padding: .2rem; }
+.tools { display: flex; gap: .5rem; }
+.tools button { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .8rem; }
+button[aria-pressed="true"] { background: #c5dfce; border-color: #225f3c; }
+label { font-weight: 600; }
+input { min-width: 0; width: 100%; padding: .7rem; border: 1px solid #86978a; border-radius: .35rem; font: .95rem ui-monospace, monospace; background: #fff; }
+.hint { margin: 0; color: #46534a; line-height: 1.4; font-size: .85rem; }

@@ -11,7 +11,7 @@ export class ChessBoard implements Iterable<PieceEnum> {
     this._board = new Array(64);
   }
 
-  *[Symbol.iterator](): Iterator<PieceEnum, any, undefined> {
+  *[Symbol.iterator](): IterableIterator<PieceEnum> {
     let i = 0;
     while (i < CHESS_BOARD_SIZE)
       yield this._board[i++];

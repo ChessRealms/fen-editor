@@ -1,77 +1,33 @@
-<div unselectable="on" class="board ranks-files-border" [style.width.px]="squareSize * 9">
-  <!--Upper border with files-->
-  <div class="row">
-    <div [style.width.px]="borderSize"></div>
-    <div *ngFor="let file of files; let i = index" [style.width.px]="squareSize" [style.height.px]="borderSize">
-      {{files[i | fileRankIndexBySideColor: isBlackView]}}
-    </div>
-    <div [style.width.px]="borderSize"></div>
+<div class="board-frame">
+  <div class="files" aria-hidden="true">
+    @for (file of files(); track file) { <span>{{ file }}</span> }
   </div>
-
-  <!--Chess Board-->
-  <ng-container *ngIf="(board$ | async) as board">
-    <div class="row" *ngFor="let rank of ranks; let rankIndex = index">
-      <!--Left border with rank-->
-      <div
-      [style.width.px]="borderSize"
-      [style.height.px]="squareSize"
-      [style.line-height.px]="squareSize"
-      >
-        {{ranks[rankIndex | fileRankIndexBySideColor: isBlackView ]}}
-      </div>
-      <!--Chess Row-->
-      <div class="square" *ngFor="let file of files; let fileIndex = index">
-        <!--Chess Square-->
-        <div
-        *ngIf="(indexFromFileRank(fileIndex, rankIndex) | squareIndexBySideColor: isBlackView) as squareIndex"
-        [style.width.px]="squareSize"
-        [style.height.px]="squareSize"
-        [ngClass]="squareNgClass(squareIndex)"
-        (click)="squareClick.emit(squareIndex)"
-        (mousedown)="squareMouseDown(squareIndex)"
-        (mouseenter)="squareMouseEnter(squareIndex)"
-        (mouseup)="squareMouseUp()">
-          <div
-          class="chess-piece cursor-ptr"
-          *ngIf="dragEnabled; else notDraggablePiece"
-          (drop)="pieceDrop(squareIndex)"
-          (dragover)="pieceDragOver($event, squareIndex)"
-          (dragleave)="pieceDragLeave()">
-            <app-chess-piece
-             draggable="true"
-             [ngClass]="currentSelectionSquareNgClass(squareIndex)"
-             *ngIf="board.getPieceAt(squareIndex) != nonePiece"
-             [piece]="board.getPieceAt(squareIndex)"
-             (dragstart)="pieceDragStart($event, squareIndex)"
-             (dragend)="pieceDragEnd()"/>
-          </div>
-          <ng-template #notDraggablePiece>
-            <div class="chess-piece">
-              <app-chess-piece
-              *ngIf="board.getPieceAt(squareIndex) != nonePiece"
-              class="chess-piece not-draggable-img"
-              [piece]="board.getPieceAt(squareIndex)"/>
-            </div>
-          </ng-template>
-        </div>
-      </div>
-      <!--Right border with rank-->
-      <div
-      [style.width.px]="borderSize"
-      [style.height.px]="squareSize"
-      [style.line-height.px]="squareSize"
-      >
-        {{ranks[rankIndex | fileRankIndexBySideColor: isBlackView]}}
-      </div>
+  <div class="board-row">
+    <div class="ranks" aria-hidden="true">
+      @for (rank of ranks(); track rank) { <span>{{ rank }}</span> }
     </div>
-  </ng-container>
-
-  <!--Lower border with files-->
-  <div class="row">
-    <div [style.width.px]="borderSize"></div>
-    <div *ngFor="let file of files; let i = index" [style.width.px]="squareSize" [style.height.px]="borderSize">
-      {{files[i | fileRankIndexBySideColor: isBlackView]}}
+    <div class="board" role="group" aria-label="Chessboard">
+      @for (square of squares(); track square.index.value) {
+        <button type="button" class="square"
+          [class.dark]="square.dark"
+          [class.dragging]="draggedSquare()?.value === square.index.value"
+          [class.drop-target]="dropTarget()?.value === square.index.value"
+          [attr.data-square]="square.name"
+          [attr.aria-label]="square.name + ', ' + pieceLabel(board().getPieceAt(square.index))"
+          [draggable]="dragEnabled() && board().getPieceAt(square.index) !== none"
+          (click)="activate(square.index)"
+          (mousedown)="beginPaint($event, square.index)"
+          (mouseenter)="continuePaint($event, square.index)"
+          (dragstart)="startDrag($event, square.index)"
+          (dragover)="dragOver($event, square.index)"
+          (dragleave)="dropTarget.set(null)"
+          (drop)="drop($event, square.index)"
+          (dragend)="cancelInteraction()">
+          @if (board().getPieceAt(square.index) !== none) {
+            <app-chess-piece [piece]="board().getPieceAt(square.index)" />
+          }
+        </button>
+      }
     </div>
-    <div [style.width.px]="borderSize"></div>
   </div>
 </div>
