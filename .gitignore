@@ -1,44 +1,39 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
+# Dependencies and Angular/TypeScript output
+node_modules/
+/.angular/
+/dist/
+/out-tsc/
+*.tsbuildinfo
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+# Test and analysis artifacts
+/coverage/
+/.nyc_output/
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+/.eslintcache
+/npm-audit.json
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
+# Local experiments, logs and environment overrides
+/tmp/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.*
+!.env.example
+!.env.*.example
 
-# IDEs and editors
+# Editors: keep the shared VS Code workspace configuration
 .idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# Visual Studio Code
+.history/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.history/*
 
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/playwright-report
-/test-results
-/libpeerconnection.log
-testem.log
-/typings
-
-# System files
+# Operating systems
 .DS_Store
 Thumbs.db
