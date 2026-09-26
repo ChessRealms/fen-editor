@@ -1,141 +1,67 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { ChessBoardComponent } from './components/chess-board/chess-board.component';
-import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
-import { PieceEnum } from './types/piece.enum';
-import { DefaultFenString, createFenString, parseFenString } from './components/chess-board/utils/fen-string';
-import { SquareIndex } from './types/square-index';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
-import { PieceMove } from './types/piece-move';
+import { PIECES } from './components/chess-board/chess-piece/piece-assets';
+import { DefaultFenString, createFenString, parseFenString } from './components/chess-board/utils/fen-string';
 import { ChessBoard } from './types/chess-board';
+import { PieceEnum } from './types/piece.enum';
+import { PieceMove } from './types/piece-move';
+import { SquareIndex } from './types/square-index';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, ChessBoardComponent, ChessPieceComponent],
+  imports: [ChessBoardComponent, ChessPieceComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent implements OnInit, OnDestroy {
-  title = 'fen-editor';
-  private _board: ChessBoard;
-  board$: Subject<ChessBoard>;
+export class AppComponent {
+  // Temporary placement-only adapter. PR-03/04 replaces ChessBoard with FenPosition.
+  readonly board = signal(parseFenString(DefaultFenString));
+  readonly placement = computed(() => createFenString(this.board()));
+  readonly tool = signal<PieceEnum | null>(null);
+  readonly draggedPiece = signal<PieceEnum | null>(null);
+  readonly blackPieces = PIECES.filter(piece => piece.color === 'black');
+  readonly whitePieces = PIECES.filter(piece => piece.color === 'white');
+  readonly erase = PieceEnum.NONE;
 
-  draggedPieceType: PieceEnum | null = null;
-  selectedPieceType: PieceEnum | null = null;
-
-  fen: string = "";
-
-  private readonly destroy$ = new Subject<boolean>();
-  constructor() {
-    this._board = parseFenString(DefaultFenString);
-    this.board$ = new BehaviorSubject(this._board);
+  selectTool(piece: PieceEnum | null): void {
+    this.tool.set(piece);
   }
 
-  ngOnInit(): void {
-    this.board$.pipe(takeUntil(this.destroy$)).subscribe(board => {
-      this.fen = createFenString(board);
-    });
+  place(square: SquareIndex): void {
+    const piece = this.tool();
+    if (piece !== null) this.setPiece(square, piece);
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  dropPalettePiece(square: SquareIndex): void {
+    const piece = this.draggedPiece();
+    if (piece === null) return;
+    this.setPiece(square, piece);
+    this.tool.set(null);
+    this.draggedPiece.set(null);
   }
 
-  get dragEnabled(): boolean {
-    return this.selectedPieceType == null || this.draggedPieceType != null
+  startPaletteDrag(event: DragEvent, piece: PieceEnum): void {
+    this.draggedPiece.set(piece);
+    event.dataTransfer?.setData('text/plain', String(piece));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
-  get blackPieces(): PieceEnum[] {
-    return [
-      PieceEnum.BPawn,
-      PieceEnum.BKnight,
-      PieceEnum.BBishop,
-      PieceEnum.BRook,
-      PieceEnum.BQueen,
-      PieceEnum.BKing
-    ];
+  move(move: PieceMove): void {
+    if (move.src.isEquals(move.dst) || this.board().getPieceAt(move.src) === PieceEnum.NONE) return;
+    this.updateBoard(board => board.movePiece(move));
   }
 
-  get whitePieces(): PieceEnum[] {
-    return [
-      PieceEnum.WPawn,
-      PieceEnum.WKnight,
-      PieceEnum.WBishop,
-      PieceEnum.WRook,
-      PieceEnum.WQueen,
-      PieceEnum.WKing
-    ]
+  private setPiece(square: SquareIndex, piece: PieceEnum): void {
+    if (this.board().getPieceAt(square) === piece) return;
+    this.updateBoard(board => board.setPieceAt(square, piece));
   }
 
-  get nonePiece(): PieceEnum {
-    return PieceEnum.NONE;
-  }
-
-  actionBtnNgClass(value: PieceEnum | null): string {
-    return this.selectedPieceType == value ? 'action-btn-selected' : ''
-  }
-
-  setSelectedPieceValue(value: PieceEnum | null): void {
-    this.selectedPieceType = value;
-  }
-
-//#region Board management
-  setPieceAtBoard(index: SquareIndex, piece: PieceEnum): void {
-    this._board.setPieceAt(index, piece);
-    this.board$.next(this._board);
-  }
-
-  movePiece(move: PieceMove): void {
-    this._board.movePiece(move);
-    this.board$.next(this._board);
-  }
-//#endregion Board management
-
-  squareClicked(index: SquareIndex): void {
-    console.log('square-click', index);
-  }
-
-  squareMouseDown(index: SquareIndex): void {
-    console.log('square-mouse-down', index);
-  }
-
-  squareMousePressured(index: SquareIndex): void {
-    if (this.selectedPieceType != null) {
-      this.setPieceAtBoard(index, this.selectedPieceType);
-    }
-
-    console.log('mouse-pressured', index);
-  }
-
-  pieceDropped(index: SquareIndex): void {
-    if (this.draggedPieceType == null) {
-      return;
-    }
-
-    this.setPieceAtBoard(index, this.draggedPieceType);
-    this.selectedPieceType = null;
-
-    console.log('piece-drop', index);
-    this.pieceDragEnd();
-  }
-
-  pieceDragged(move: PieceMove): void {
-    if (!move.src.isEquals(move.dst)) {
-      this.movePiece(move);
-    }
-
-    console.log('piece-dragged', move);
-  }
-
-  pieceDragStart(pieceType: PieceEnum): void {
-    this.draggedPieceType = pieceType;
-  }
-
-  pieceDragEnd(): void {
-    this.draggedPieceType = null;
+  private updateBoard(change: (board: ChessBoard) => void): void {
+    const next = ChessBoard.createEmpty();
+    this.board().getPieces().forEach((piece, index) => next.setPieceAt(new SquareIndex(index), piece));
+    change(next);
+    this.board.set(next);
   }
 }

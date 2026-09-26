@@ -1,6 +1,5 @@
 import { ChessBoard } from "../../../types/chess-board";
 import { PieceEnum } from "../../../types/piece.enum";
-import { Position } from "../../../types/position";
 import { SquareIndex } from "../../../types/square-index";
 import { parsePieceValue, pieceValueToString } from "./board-defaults";
 

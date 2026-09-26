@@ -1,53 +1,53 @@
-<div>
-  <div class="actions-panel">
-    <app-chess-piece
-      *ngFor="let piece of blackPieces"
-      draggable="true"
-      [piece]="piece"
-      [ngClass]="actionBtnNgClass(piece)"
-      (click)="setSelectedPieceValue(piece)"
-      (dragstart)="pieceDragStart(piece)"
-      (dragend)="pieceDragEnd()"/>
-  </div>
-  <div>
-    <app-chess-board
-      [board$]="board$"
-      [squareSize]="45"
-      [isBlackView]="false"
-      [dragEnabled]="dragEnabled"
-      (pieceDragged)="pieceDragged($event)"
-      (pieceDropped)="pieceDropped($event)"
-      (squareClick)="squareClicked($event)"
-      (squareMousePressured)="squareMousePressured($event)"/>
-  </div>
-  <div class="fen-container">
-    <input class="fen-textbox" [value]="fen" readonly/>
-  </div>
-  <div class="actions-panel">
-    <app-chess-piece
-      *ngFor="let piece of whitePieces"
-      draggable="true"
-      [piece]="piece"
-      [ngClass]="actionBtnNgClass(piece)"
-      (click)="setSelectedPieceValue(piece)"
-      (dragstart)="pieceDragStart(piece)"
-      (dragend)="pieceDragEnd()"/>
-    <div
-      [ngClass]="actionBtnNgClass(null)"
-      (click)="setSelectedPieceValue(null)">
-      <img src="assets/hand.svg"/>
-    </div>
-    <div
-      [ngClass]="actionBtnNgClass(nonePiece)"
-      (click)="setSelectedPieceValue(nonePiece)"
-      (dragstart)="pieceDragStart(nonePiece)"
-      (dragend)="pieceDragEnd()">
-      <img src="assets/trash-bucket.svg"/>
-    </div>
-  </div>
+<main>
+  <header>
+    <h1>FEN Editor</h1>
+    <p>Choose a piece to place it. Use Move to drag pieces, or Erase to remove them.</p>
+  </header>
 
-</div>
-<div class="actions-panel">
+  <section class="editor" aria-label="Position editor">
+    <div class="palette" role="group" aria-label="Black pieces">
+      @for (piece of blackPieces; track piece.value) {
+        <button type="button" class="piece-tool" draggable="true"
+          [attr.aria-label]="'Place ' + piece.label"
+          [attr.aria-pressed]="tool() === piece.value"
+          (click)="selectTool(piece.value)"
+          (dragstart)="startPaletteDrag($event, piece.value)"
+          (dragend)="draggedPiece.set(null)">
+          <app-chess-piece [piece]="piece.value" />
+        </button>
+      }
+    </div>
 
-</div>
-<router-outlet></router-outlet>
+    <app-chess-board [board]="board()" [dragEnabled]="tool() === null"
+      [paintEnabled]="tool() !== null"
+      (squareActivated)="place($event)"
+      (pieceMoved)="move($event)"
+      (paletteDropped)="dropPalettePiece($event)" />
+
+    <div class="palette" role="group" aria-label="White pieces">
+      @for (piece of whitePieces; track piece.value) {
+        <button type="button" class="piece-tool" draggable="true"
+          [attr.aria-label]="'Place ' + piece.label"
+          [attr.aria-pressed]="tool() === piece.value"
+          (click)="selectTool(piece.value)"
+          (dragstart)="startPaletteDrag($event, piece.value)"
+          (dragend)="draggedPiece.set(null)">
+          <app-chess-piece [piece]="piece.value" />
+        </button>
+      }
+    </div>
+
+    <div class="tools" role="group" aria-label="Board tools">
+      <button type="button" [attr.aria-pressed]="tool() === null" (click)="selectTool(null)">
+        <img src="assets/hand.svg" alt="" width="22" height="22" /> Move
+      </button>
+      <button type="button" [attr.aria-pressed]="tool() === erase" (click)="selectTool(erase)">
+        <img src="assets/trash-bucket.svg" alt="" width="22" height="22" /> Erase
+      </button>
+    </div>
+
+    <label for="placement">Piece placement</label>
+    <input id="placement" [value]="placement()" readonly aria-describedby="placement-help" spellcheck="false" />
+    <p id="placement-help" class="hint">Piece placement only. Select the text to copy it.</p>
+  </section>
+</main>
