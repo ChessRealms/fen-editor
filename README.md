@@ -1,52 +1,33 @@
 # FEN Editor
 
-A chess position editor built with Angular 22.2, standalone components and zoneless change detection.
+A chess position editor built with Angular 22, standalone components and zoneless change detection. Place, erase, paint and drag pieces; the current readonly output is **piece placement only**, the first FEN field.
 
-The current shell supports choosing pieces, placing and erasing them, mouse painting, dragging pieces on the board and dragging from the palette. The readonly output contains **piece placement only**, the first field of FEN. Full FEN import, metadata controls and the complete touch/keyboard workflows are planned in later PRs.
+[Roadmap and MVP decisions](docs/ROADMAP.md) · [Agent instructions](AGENTS.md)
 
-## Requirements
+## Run locally
 
-- Node.js 24.21.0 (`.node-version` / `.nvmrc`).
-- npm 11.19.1 (`packageManager` in package.json).
-
-## Local development
+Use the Node version in [.node-version](.node-version) (also mirrored in `.nvmrc`) and the npm version in [package.json](package.json).
 
 ```sh
 npm ci
 npm start
 ```
 
-Open http://localhost:4200. The dev server rebuilds when source files change.
+Open [localhost:4200](http://localhost:4200).
 
 ## Checks
 
-```sh
-npm run lint
-npm test
-npm run test:ci
-npm run build
-npx playwright install chromium
-npm run e2e
-npm run audit:ci
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run lint` | TypeScript and template lint |
+| `npm test -- --watch` | Vitest during development |
+| `npm run test:ci` | Component tests once, with coverage |
+| `npm run build` | Production output in `dist/fen-editor/browser/` |
+| `npm run e2e` | Chromium tests against an automatically built/served production app |
+| `npm run audit:ci` | Full dependency audit; high/critical findings fail |
 
-- `npm test` uses Angular CLI's Vitest integration; use `-- --watch` to explicitly enable watch mode or `-- --no-watch` for one run.
-- `test:ci` runs component tests once with coverage under `coverage/`.
-- `build` writes the production application to `dist/fen-editor/browser/`.
-- `e2e` builds and starts a local production preview automatically. When `CI=true`, it expects `npm run build` to have run first. The preview binds only to `127.0.0.1:4173` and stops with the test run.
-- `npx playwright install --with-deps chromium` also installs browser system dependencies on Linux.
-- Playwright writes its HTML report to `playwright-report/` and failure traces/screenshots to `test-results/`.
-- The audit includes development dependencies and fails at high/critical severity.
+Before the first E2E run, use `npx playwright install chromium` (`--with-deps` on Linux). With `CI=true`, run the build before E2E; the test preview uses `127.0.0.1:4173`. Tests stop the preview automatically.
 
-## Continuous integration
+[CI](.github/workflows/ci.yml) runs checks on PRs and main; [Dependabot](.github/dependabot.yml) checks updates weekly. Generated reports stay in ignored output folders or CI artifacts. Keep `package-lock.json` in Git for reproducible installs.
 
-GitHub Actions runs lint, component tests, production build and Chromium E2E on pull requests and pushes to main. A separate job audits the full lockfile. Actions are pinned to commits; reports are retained for seven days. Dependabot checks npm dependencies and Actions weekly.
-
-## Implementation boundaries
-
-The shell uses signals/computed and signal inputs/outputs. The existing placement parser and board types remain a temporary adapter for PR-03/04. No router, Zone.js, Karma or Jasmine is installed. SVGs live in `public/assets/`.
-
-- [PR-01: contracts, baseline and target platform](docs/planning/pr-01/README.md)
-- [PR-02: implementation and validation](docs/planning/pr-02/README.md)
-
-Undo/redo, shareable URLs, persistence and chess variants are outside the MVP.
+Current behavior lives in the implementation/tests; the roadmap tracks unfinished work and decisions. Do not maintain per-PR reports or duplicate code documentation.
