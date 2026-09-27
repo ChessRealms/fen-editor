@@ -8,6 +8,7 @@ header p { color: #46534a; line-height: 1.5; }
 .tools { display: flex; gap: .5rem; }
 .tools button { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .8rem; }
 button[aria-pressed="true"] { background: #c5dfce; border-color: #225f3c; }
+button:disabled { cursor: wait; opacity: .65; }
 label { font-weight: 600; }
 textarea { min-width: 0; width: 100%; resize: vertical; padding: .7rem; border: 1px solid #86978a; border-radius: .35rem; font: .95rem/1.5 ui-monospace, monospace; color: inherit; background: #fff; }
 textarea[readonly] { background: #edf2ed; }

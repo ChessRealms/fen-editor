@@ -1,6 +1,6 @@
 # FEN Editor roadmap
 
-The Angular 22 shell, independent FEN domain core and full FEN draft/apply workflow are delivered. Dedicated metadata controls and editor commands are next. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
+The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow, metadata controls and editor commands are delivered. Pointer interactions and responsive refinement are next. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
 
 ## Delivery plan
 
@@ -9,8 +9,8 @@ The Angular 22 shell, independent FEN domain core and full FEN draft/apply workf
 | PR-01/02 — complete | — | Baseline/contracts established; standalone zoneless shell, signals, SVG port, lint, Vitest, Chromium smoke and CI delivered. |
 | PR-03 — complete | PR-02 | Pure TypeScript core in `src/app/domain/fen/`, covered by [parse/serialize](../src/app/domain/fen/fen.spec.ts), [immutable operations](../src/app/domain/fen/position.spec.ts) and [warnings](../src/app/domain/fen/warnings.spec.ts) tests. |
 | PR-04 — complete | PR-03 | One applied domain position, FEN draft/atomic Apply, inline errors and non-blocking warnings; legacy model/parser removed. Draft retention, metadata preservation and gesture cancellation on Apply are covered by [component](../src/app/app.component.spec.ts) and [browser](../e2e/editor.spec.ts) tests. |
-| PR-05 — next | PR-04 | Controls for all metadata, Copy/Clear/Starting position/Flip. Board, controls and canonical FEN stay synchronized; command semantics below are verified. |
-| PR-06 | PR-04/05 | Pointer Events, capture/cancellation, tap alternative to drag and responsive layout. Cancelled gestures do not change state; touch interactions preserve page scrolling outside the board. |
+| PR-05 — complete | PR-04 | Metadata controls with local numeric drafts; Copy/Clear/Starting position/Flip. Synchronization, draft retention and commands are covered by [component](../src/app/app.component.spec.ts), [clipboard adapter](../src/app/clipboard.service.spec.ts) and [Chromium](../e2e/editor.spec.ts) tests, including real clipboard writes and failure fallback. |
+| PR-06 — next | PR-04/05 | Pointer Events, capture/cancellation, tap alternative to drag and responsive layout. Cancelled gestures do not change state; touch interactions preserve page scrolling outside the board. |
 | PR-07 | PR-05/06 | Roving keyboard focus, semantic controls, labels, errors and announcements. Full editing without a mouse; automated accessibility checks plus manual keyboard/screen-reader smoke. |
 | PR-08 | PR-03–07 | Full regression and release checks. CI build/lint/unit/E2E pass; full dependency audit has zero high/critical findings; device checks and limitations recorded. |
 
@@ -34,21 +34,13 @@ The [domain entry point](../src/app/domain/fen/index.ts) is independent of Angul
 - Plausibility warnings never block import/export or repair data. Empty boards are accepted; local checks are not proof of legal reachability. Castling paths need not be clear/safe and en passant needs no capturing pawn. The checks are covered by [warning tests](../src/app/domain/fen/warnings.spec.ts).
 - Board composition changes pieces only, preserving all metadata; it does not execute chess rules or advance turns/counters. Boundary validation, immutable snapshots and metadata updates are covered by [position tests](../src/app/domain/fen/position.spec.ts).
 
-## Pending editor contract
+## Editor boundaries
 
-One applied position owns all six fields; FEN draft/apply behavior is covered by the PR-04 tests above. New metadata controls must use that same position and the existing domain operations. Orientation, focus, selection and numeric drafts are separate UI concerns. Syntax errors block Apply; plausibility warnings remain non-blocking.
+One applied position owns all six fields; board and metadata edits use the same domain operations. Orientation, focus, future square selection and numeric drafts are separate UI concerns. Syntax errors block Apply; plausibility warnings remain non-blocking. Draft, numeric-input and command behavior is covered by the PR-04/05 tests above; user instructions live in [README](../README.md#edit-a-position).
 
-| Action | Required behavior |
-| --- | --- |
-| Apply valid FEN with metadata controls | Also reset numeric drafts/errors and any square selection when replacing the position. |
-| Metadata edit | Update canonical FEN with the same clean/dirty draft behavior as board edits. A later Apply still replaces the complete position. |
-| Numeric input | Commit valid complete integers immediately. Empty/invalid drafts stay local with an error; unrelated edits preserve them. Blur/Enter canonicalizes valid digits; Escape restores that applied field. |
-| Starting position / Reset | Set `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1`; Reset does not mean restore last import. |
-| Clear | Set `8/8/8/8/8/8/8/8 w - - 0 1`. |
-| Flip | Change display only; preserve position/drafts/logical selection and cancel an in-progress gesture. |
-| Copy applied FEN | Copy canonical applied FEN, not the draft. Announce success only after the write resolves; expose selectable text on failure. No clipboard-read permission is needed to copy. |
+Initial state is the starting position, white orientation and Move tool. Reset means the standard starting position, not the last import; Clear resets all six fields. Flip changes display only. Copy exports the applied position and requires no clipboard-read permission. Reset/Clear preserve orientation.
 
-Initial state is the starting position, white orientation and move tool. Reset/Clear discard all drafts, syntax errors and selection, cancel gestures and restore the move tool while preserving orientation. Warnings recompute from the resulting position.
+When square selection is introduced in PR-06, preserve its logical identity on Flip and clear it on successful Apply, Starting position and Clear. Existing mouse painting applies each square immediately; staging and rollback of a cancelled stroke belong to PR-06.
 
 ## Interaction and verification
 
@@ -57,7 +49,7 @@ Initial state is the starting position, white orientation and move tool. Reset/C
 - Board keyboard entry uses one Tab stop with roving focus. Arrows follow visual directions after Flip; Enter/Space activates, Delete/Backspace erases only with board focus, Escape cancels. Do not intercept text-field shortcuts.
 - Verify grid/row/gridcell semantics, named square buttons, pressed tools, labels, error descriptions and polite announcements together. Decorative images must not duplicate names; color alone must not convey selection/errors.
 - Check 320/375/768px and desktop layouts, 200% zoom, contrast and focus. Board cells must remain at least 24 CSS px; toolbar/palette controls target 44px where practical. Scope gesture `touch-action` locally and preserve browser zoom/page scrolling elsewhere.
-- Extend component tests for metadata controls, commands and clipboard outcomes, retaining the existing draft/apply regressions. Extend production-build browser tests for pointer/keyboard interaction and copying.
+- Retain the existing draft/apply, metadata, command and clipboard regressions while extending production-build browser tests for pointer and keyboard interaction.
 - Expand Chromium smoke to Firefox/WebKit core workflows and touch-enabled Android/iPhone emulation. Use real clipboard checks in Chromium plus deterministic adapter tests and manual fallback checks in other engines.
 - Before MVP release, record real Android Chrome/iOS Safari touch/scroll/rotate/copy smoke and NVDA/Chrome plus VoiceOver/Safari checks. Emulation is not real-device verification; record unavailable checks as pending.
 

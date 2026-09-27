@@ -1,0 +1,15 @@
+:host { display: block; }
+section { display: grid; gap: .8rem; padding: 1rem; border: 1px solid #86978a; border-radius: .35rem; background: #fff; }
+h2 { margin: 0; font-size: 1.15rem; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem .8rem; }
+.field { display: grid; align-content: start; gap: .4rem; min-width: 0; }
+label, legend { font-weight: 600; }
+input[type="text"], select { width: 100%; min-width: 0; min-height: 44px; padding: .5rem; border: 1px solid #86978a; border-radius: .35rem; font: inherit; color: inherit; background: #fff; }
+fieldset { min-width: 0; margin: 0; padding: .5rem .75rem; border: 1px solid #86978a; border-radius: .35rem; }
+.checkbox { display: flex; align-items: center; gap: .4rem; min-height: 44px; font-size: .9rem; }
+.checkbox input { flex-shrink: 0; width: 1.1rem; height: 1.1rem; accent-color: #225f3c; }
+.hint, .error { margin: 0; line-height: 1.4; font-size: .85rem; overflow-wrap: anywhere; }
+.hint { color: #46534a; }
+.error { color: #80211d; }
+input[aria-invalid="true"] { border: 2px solid #a12622; }
+@media (max-width: 380px) { .fields { grid-template-columns: minmax(0, 1fr); } }

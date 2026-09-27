@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ChessBoardComponent } from './components/chess-board/chess-board.component';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
 import { PIECES } from './components/chess-board/chess-piece/piece-assets';
+import { MetadataControlsComponent } from './components/metadata-controls/metadata-controls.component';
+import { ClipboardService } from './clipboard.service';
 import {
-  FenError, FenPosition, Piece, Square, getFenWarnings, movePiece, parseFen,
-  placePiece, removePiece, serializeFen, squareToIndex,
+  FenError, FenMetadata, FenPosition, Piece, Square, getFenWarnings, movePiece, parseFen,
+  placePiece, removePiece, serializeFen, squareToIndex, updateMetadata,
 } from './domain/fen';
 import { describeFenError, describeFenWarning } from './fen-messages';
 
@@ -14,9 +16,15 @@ function startingPosition(): FenPosition {
   return result.position;
 }
 
+function emptyPosition(): FenPosition {
+  const result = parseFen('8/8/8/8/8/8/8/8 w - - 0 1');
+  if (!result.ok) throw new Error('Invalid empty position.');
+  return result.position;
+}
+
 @Component({
   selector: 'app-root',
-  imports: [ChessBoardComponent, ChessPieceComponent],
+  imports: [ChessBoardComponent, ChessPieceComponent, MetadataControlsComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,7 +32,7 @@ function startingPosition(): FenPosition {
 export class AppComponent {
   readonly position = signal(startingPosition());
   readonly canonicalFen = computed(() => serializeFen(this.position()));
-  // A null draft follows the applied position. An explicit draft survives board edits,
+  // A null draft follows the applied position. An explicit draft survives edits,
   // even if a later edit happens to produce the same FEN.
   private readonly draft = signal<string | null>(null);
   readonly fenDraft = computed(() => this.draft() ?? this.canonicalFen());
@@ -35,9 +43,18 @@ export class AppComponent {
   readonly describeWarning = describeFenWarning;
   readonly tool = signal<Piece | 'erase' | null>(null);
   readonly draggedPiece = signal<Piece | null>(null);
+  readonly isBlackView = signal(false);
+  readonly copyPending = signal(false);
+  private readonly copyResult = signal<{ fen: string; message: string } | null>(null);
+  readonly copyMessage = computed(() => {
+    const result = this.copyResult();
+    return result?.fen === this.canonicalFen() ? result.message : '';
+  });
   readonly blackPieces = PIECES.filter(piece => piece.color === 'black');
   readonly whitePieces = PIECES.filter(piece => piece.color === 'white');
   private readonly chessBoard = viewChild(ChessBoardComponent);
+  private readonly metadataControls = viewChild(MetadataControlsComponent);
+  private readonly clipboard = inject(ClipboardService);
 
   editFenDraft(text: string): void {
     this.draft.set(text === this.canonicalFen() ? null : text);
@@ -54,15 +71,63 @@ export class AppComponent {
       input.setSelectionRange(start, end);
       return;
     }
-    this.chessBoard()?.cancelInteraction();
-    this.draggedPiece.set(null);
-    this.position.set(result.position);
-    this.useCurrentPosition();
+    this.replacePosition(result.position);
   }
 
   useCurrentPosition(): void {
     this.draft.set(null);
     this.errors.set([]);
+  }
+
+  editMetadata(patch: Partial<FenMetadata>): void {
+    this.position.update(position => updateMetadata(position, patch));
+  }
+
+  resetPosition(): void {
+    this.replacePosition(startingPosition());
+    this.tool.set(null);
+  }
+
+  clearPosition(): void {
+    this.replacePosition(emptyPosition());
+    this.tool.set(null);
+  }
+
+  flipBoard(): void {
+    this.cancelInteraction();
+    this.isBlackView.update(value => !value);
+  }
+
+  async copyFen(input: HTMLTextAreaElement): Promise<void> {
+    if (this.copyPending()) return;
+    const fen = this.canonicalFen();
+    this.copyPending.set(true);
+    this.copyResult.set(null);
+    try {
+      await this.clipboard.writeText(fen);
+      this.copyResult.set({ fen, message: 'Applied FEN copied.' });
+    } catch {
+      this.copyResult.set({ fen, message: 'Copy failed. Select Applied FEN and copy it manually.' });
+      if (fen === this.canonicalFen()) {
+        input.focus();
+        input.select();
+      }
+    } finally {
+      this.copyPending.set(false);
+    }
+  }
+
+  private replacePosition(position: FenPosition): void {
+    this.cancelInteraction();
+    this.position.set(position);
+    this.metadataControls()?.resetDrafts();
+    this.useCurrentPosition();
+    this.copyResult.set(null);
+  }
+
+  private cancelInteraction(): void {
+    this.chessBoard()?.cancelInteraction();
+    this.draggedPiece.set(null);
   }
 
   selectTool(piece: Piece | 'erase' | null): void {

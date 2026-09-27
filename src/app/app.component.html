@@ -19,7 +19,7 @@
     </div>
 
     <app-chess-board [board]="position().board" [dragEnabled]="tool() === null"
-      [paintEnabled]="tool() !== null"
+      [paintEnabled]="tool() !== null" [isBlackView]="isBlackView()"
       (squareActivated)="place($event)"
       (pieceMoved)="move($event)"
       (paletteDropped)="dropPalettePiece($event)" />
@@ -45,6 +45,14 @@
         <img src="assets/trash-bucket.svg" alt="" width="22" height="22" /> Erase
       </button>
     </div>
+
+    <div class="fen-actions" role="group" aria-label="Position commands">
+      <button type="button" (click)="resetPosition()">Starting position</button>
+      <button type="button" (click)="clearPosition()">Clear</button>
+      <button type="button" [attr.aria-pressed]="isBlackView()" (click)="flipBoard()">Flip board</button>
+    </div>
+
+    <app-metadata-controls [metadata]="position()" (metadataChanged)="editMetadata($event)" />
 
     <form class="fen-form" (submit)="applyFen($event, fenInput)">
       <label for="fen-draft">FEN draft</label>
@@ -78,9 +86,13 @@
     </form>
 
     <label for="applied-fen">Applied FEN</label>
-    <textarea id="applied-fen" rows="3" [value]="canonicalFen()" readonly
+    <textarea #appliedFen id="applied-fen" rows="3" [value]="canonicalFen()" readonly
       aria-describedby="applied-fen-help" spellcheck="false"></textarea>
-    <p id="applied-fen-help" class="hint">Canonical FEN for the board above. Select the text to copy it.</p>
+    <p id="applied-fen-help" class="hint">Canonical FEN for the applied position, including all position details.</p>
+    <div class="fen-actions">
+      <button type="button" [disabled]="copyPending()" (click)="copyFen(appliedFen)">Copy applied FEN</button>
+    </div>
+    <p id="copy-status" class="hint" role="status" aria-label="Copy status">{{ copyMessage() }}</p>
 
     @if (warnings().length) {
       <section class="warnings" aria-labelledby="warnings-heading">
