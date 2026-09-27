@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { ChessBoardComponent, PaintStroke } from './components/chess-board/chess-board.component';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
-import { PIECES } from './components/chess-board/chess-piece/piece-assets';
+import { PIECES, pieceLabel } from './components/chess-board/chess-piece/piece-assets';
 import { MetadataControlsComponent } from './components/metadata-controls/metadata-controls.component';
 import { ClipboardService } from './clipboard.service';
 import {
@@ -43,6 +43,7 @@ export class AppComponent {
   readonly describeWarning = describeFenWarning;
   readonly tool = signal<Piece | 'erase' | null>(null);
   readonly isBlackView = signal(false);
+  readonly announcements = signal<readonly { text: string }[]>([]);
   readonly copyPending = signal(false);
   private readonly copyResult = signal<{ fen: string; message: string } | null>(null);
   readonly copyMessage = computed(() => {
@@ -71,11 +72,13 @@ export class AppComponent {
       return;
     }
     this.replacePosition(result.position);
+    this.announcePosition('FEN applied.');
   }
 
   useCurrentPosition(): void {
     this.draft.set(null);
     this.errors.set([]);
+    this.announce('FEN draft restored to the applied position.');
   }
 
   editMetadata(patch: Partial<FenMetadata>): void {
@@ -85,16 +88,19 @@ export class AppComponent {
   resetPosition(): void {
     this.replacePosition(startingPosition());
     this.tool.set(null);
+    this.announcePosition('Starting position restored. Move tool selected.');
   }
 
   clearPosition(): void {
     this.replacePosition(emptyPosition());
     this.tool.set(null);
+    this.announcePosition('Board cleared. Move tool selected.');
   }
 
   flipBoard(): void {
     this.cancelInteraction();
     this.isBlackView.update(value => !value);
+    this.announce(`${this.isBlackView() ? 'Black' : 'White'} side at the bottom.`);
   }
 
   async copyFen(input: HTMLTextAreaElement): Promise<void> {
@@ -133,6 +139,9 @@ export class AppComponent {
     this.cancelInteraction();
     this.chessBoard()?.selectedSquare.set(null);
     this.tool.set(piece);
+    this.announce(piece === null ? 'Move tool selected. Choose a piece, then a destination.'
+      : piece === 'erase' ? 'Erase tool selected. Activate a square to erase it.'
+        : `Place ${pieceLabel(piece)} selected. Activate a square to place it.`);
   }
 
   selectPaletteTool(event: MouseEvent, piece: Piece): void {
@@ -150,6 +159,9 @@ export class AppComponent {
       if (current.board[squareToIndex(square)] === stroke.piece) return current;
       return stroke.piece === null ? removePiece(current, square) : placePiece(current, square, stroke.piece);
     }, position));
+    this.announcePosition(stroke.squares.length === 1
+      ? stroke.piece === null ? `${stroke.squares[0]} cleared.` : `${pieceLabel(stroke.piece)} placed on ${stroke.squares[0]}.`
+      : stroke.piece === null ? `${stroke.squares.length} squares cleared.` : `${pieceLabel(stroke.piece)} placed on ${stroke.squares.length} squares.`);
   }
 
   dropPalettePiece(drop: { square: Square; piece: Piece }): void {
@@ -161,5 +173,18 @@ export class AppComponent {
     const position = this.position();
     if (move.from === move.to || position.board[squareToIndex(move.from)] === null) return;
     this.position.set(movePiece(position, move.from, move.to));
+    const replaced = position.board[squareToIndex(move.to)];
+    this.announcePosition(`${pieceLabel(position.board[squareToIndex(move.from)])} moved from ${move.from} to ${move.to}.${replaced ? ' Replaced ' + pieceLabel(replaced) + '.' : ''}`);
+  }
+
+  announce(text: string): void {
+    // Replace the child of the persistent live region so repeated commands
+    // with the same message can still be announced.
+    this.announcements.set([{ text }]);
+  }
+
+  private announcePosition(message: string): void {
+    const count = this.warnings().length;
+    this.announce(`${message} ${count ? `${count} position warning${count === 1 ? '' : 's'}. See Applied position warnings.` : 'No position warnings.'}`);
   }
 }

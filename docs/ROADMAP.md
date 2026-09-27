@@ -1,6 +1,6 @@
 # FEN Editor roadmap
 
-The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow, metadata controls, editor commands and responsive pointer interactions are delivered. Keyboard editing and accessibility are next. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
+The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow, metadata controls, editor commands, responsive pointer interactions and keyboard editing are delivered. PR-07 still needs manual accessibility verification before acceptance; release checks follow in PR-08. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
 
 ## Delivery plan
 
@@ -11,7 +11,7 @@ The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow
 | PR-04 — complete | PR-03 | One applied domain position, FEN draft/atomic Apply, inline errors and non-blocking warnings; legacy model/parser removed. Draft retention, metadata preservation and gesture cancellation on Apply are covered by [component](../src/app/app.component.spec.ts) and [browser](../e2e/editor.spec.ts) tests. |
 | PR-05 — complete | PR-04 | Metadata controls with local numeric drafts; Copy/Clear/Starting position/Flip. Synchronization, draft retention and commands are covered by [component](../src/app/app.component.spec.ts), [clipboard adapter](../src/app/clipboard.service.spec.ts) and [Chromium](../e2e/editor.spec.ts) tests, including real clipboard writes and failure fallback. |
 | PR-06 — complete | PR-04/05 | Pointer capture/cancellation, staged drag/paint, tap movement and responsive controls; [component](../src/app/app.component.spec.ts) and [browser](../e2e/pointer.spec.ts) regressions cover mouse, pen, Chromium Android touch/scroll, narrow layouts and 200% CSS zoom. |
-| PR-07 — next | PR-05/06 | Roving keyboard focus, semantic controls, labels, errors and announcements. Full editing without a mouse; automated accessibility checks plus manual keyboard/screen-reader smoke. |
+| PR-07 — next (manual verification pending) | PR-05/06 | Roving focus, grid semantics, keyboard editing, labels, errors and polite announcements implemented; [component](../src/app/app.component.spec.ts) and [keyboard/axe](../e2e/accessibility.spec.ts) regressions pass. Manual keyboard/screen-reader smoke remains required before marking complete. |
 | PR-08 | PR-03–07 | Full regression and release checks. CI build/lint/unit/E2E pass; full dependency audit has zero high/critical findings; device checks and limitations recorded. |
 
 After a stage meets acceptance and passes its required checks, mark it `complete` and move `next` to the following unfinished stage. Updating status does not authorize work on that stage.
@@ -44,9 +44,8 @@ Board composition commits only completed gestures. Touch uses palette selection 
 
 ## Interaction and verification
 
-- Board keyboard entry uses one Tab stop with roving focus. Arrows follow visual directions after Flip; Enter/Space activates, Delete/Backspace erases only with board focus, Escape cancels. Do not intercept text-field shortcuts.
-- Verify grid/row/gridcell semantics, named square buttons, pressed tools, labels, error descriptions and polite announcements together. Decorative images must not duplicate names; color alone must not convey selection/errors.
-- Retain the 320/375/768px, desktop and 200% CSS-zoom layout checks; verify native browser zoom, contrast and focus during accessibility/device checks. Board cells must remain at least 24 CSS px; toolbar/palette controls target 44px where practical.
+- Keyboard controls and accessibility semantics are covered by PR-07 tests; user instructions live in [README](../README.md#edit-a-position). Retain the 320/375/768px, desktop and 200% CSS-zoom layout checks. Board cells must remain at least 24 CSS px; toolbar/palette controls target 44px where practical.
+- PR-07 manual verification is pending: native Chrome keyboard/focus/zoom smoke could not run because Computer Use was not approved to control Chrome; NVDA was not found among available apps or in its standard installation paths, and VoiceOver/Safari was unavailable on this Windows host. Inspect spoken square names, selection, errors and polite announcements using the README smoke sequence. Automated keyboard/axe checks and screenshot inspection passed, but do not satisfy this manual acceptance criterion.
 - Retain the existing draft/apply, metadata, command and clipboard regressions while extending production-build browser tests for pointer and keyboard interaction.
 - Expand Chromium desktop/Android coverage to Firefox/WebKit core workflows and iPhone emulation. Use real clipboard checks in Chromium plus deterministic adapter tests and manual fallback checks in other engines.
 - Before MVP release, record real Android Chrome/iOS Safari touch/scroll/rotate/copy smoke and NVDA/Chrome plus VoiceOver/Safari checks. Emulation is not real-device verification; record unavailable checks as pending.

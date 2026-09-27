@@ -46,7 +46,9 @@ export class ChessBoardComponent implements OnDestroy {
   readonly pieceMoved = output<{ from: Square; to: Square }>();
   readonly paletteDropped = output<{ square: Square; piece: Piece }>();
   readonly paletteSelected = output<Piece>();
+  readonly announced = output<string>();
   readonly selectedSquare = signal<Square | null>(null);
+  readonly focusedSquare = signal<Square>('a8');
   private readonly gesture = signal<Gesture | null>(null);
   private readonly boardElement = viewChild.required<ElementRef<HTMLElement>>('boardElement');
   readonly draggedSquare = computed(() => {
@@ -80,6 +82,40 @@ export class ChessBoardComponent implements OnDestroy {
   }));
   readonly files = computed(() => (this.isBlackView() ? 'hgfedcba' : 'abcdefgh').split(''));
   readonly ranks = computed(() => (this.isBlackView() ? '12345678' : '87654321').split(''));
+  readonly rows = computed(() => Array.from({ length: 8 }, (_, rank) => this.squares().slice(rank * 8, rank * 8 + 8)));
+
+  keydown(event: KeyboardEvent, square: Square): void {
+    if (event.isComposing || event.altKey || event.metaKey || event.shiftKey) return;
+    if (event.ctrlKey && event.key !== 'Home' && event.key !== 'End') return;
+    if (event.repeat && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      return;
+    }
+    const index = this.squares().findIndex(candidate => candidate.name === square);
+    const row = Math.floor(index / 8);
+    const column = index % 8;
+    let target: number;
+    switch (event.key) {
+      case 'ArrowLeft': target = row * 8 + Math.max(0, column - 1); break;
+      case 'ArrowRight': target = row * 8 + Math.min(7, column + 1); break;
+      case 'ArrowUp': target = Math.max(0, row - 1) * 8 + column; break;
+      case 'ArrowDown': target = Math.min(7, row + 1) * 8 + column; break;
+      case 'Home': target = event.ctrlKey ? 0 : row * 8; break;
+      case 'End': target = event.ctrlKey ? 63 : row * 8 + 7; break;
+      case 'Delete':
+      case 'Backspace':
+        event.preventDefault();
+        this.cancelInteraction();
+        this.selectedSquare.set(null);
+        this.strokeCompleted.emit({ squares: [square], piece: null });
+        return;
+      default: return;
+    }
+    event.preventDefault();
+    this.cancelInteraction();
+    const name = this.squares()[target].name;
+    this.boardElement().nativeElement.querySelector<HTMLButtonElement>(`[data-square="${name}"]`)?.focus();
+  }
 
   beginPointer(event: PointerEvent, square: Square): void {
     const tool = this.tool();
@@ -113,8 +149,12 @@ export class ChessBoardComponent implements OnDestroy {
     if (source) {
       this.selectedSquare.set(null);
       if (source !== square) this.pieceMoved.emit({ from: source, to: square });
+      else this.announced.emit('Selection canceled.');
     } else if (this.board()[squareToIndex(square)]) {
       this.selectedSquare.set(square);
+      this.announced.emit(`${pieceLabel(this.board()[squareToIndex(square)])} on ${square} selected. Choose a destination, or press Escape to cancel.`);
+    } else {
+      this.announced.emit(`${square} is empty. Choose a square with a piece to move.`);
     }
   }
 
@@ -187,10 +227,13 @@ export class ChessBoardComponent implements OnDestroy {
   }
 
   escape(event: Event): void {
+    if (event instanceof KeyboardEvent && event.isComposing) return;
+    const hadGesture = this.gesture() !== null;
+    const boardFocused = event.target instanceof Node && this.boardElement().nativeElement.contains(event.target);
+    const hadSelection = boardFocused && this.selectedSquare() !== null;
     this.cancelInteraction();
-    if (event.target instanceof Node && this.boardElement().nativeElement.contains(event.target)) {
-      this.selectedSquare.set(null);
-    }
+    if (boardFocused) this.selectedSquare.set(null);
+    if (hadGesture || hadSelection) this.announced.emit('Interaction canceled.');
   }
 
   cancelInteraction(): void {
