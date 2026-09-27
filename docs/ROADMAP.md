@@ -1,6 +1,6 @@
 # FEN Editor roadmap
 
-The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow, metadata controls and editor commands are delivered. Pointer interactions and responsive refinement are next. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
+The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow, metadata controls, editor commands and responsive pointer interactions are delivered. Keyboard editing and accessibility are next. Stage IDs preserve the original plan; each stage includes its own tests and should leave the application usable. Exact installed versions and commands live in configuration and [README.md](../README.md), not here.
 
 ## Delivery plan
 
@@ -10,8 +10,8 @@ The Angular 22 shell, independent FEN domain core, full FEN draft/apply workflow
 | PR-03 — complete | PR-02 | Pure TypeScript core in `src/app/domain/fen/`, covered by [parse/serialize](../src/app/domain/fen/fen.spec.ts), [immutable operations](../src/app/domain/fen/position.spec.ts) and [warnings](../src/app/domain/fen/warnings.spec.ts) tests. |
 | PR-04 — complete | PR-03 | One applied domain position, FEN draft/atomic Apply, inline errors and non-blocking warnings; legacy model/parser removed. Draft retention, metadata preservation and gesture cancellation on Apply are covered by [component](../src/app/app.component.spec.ts) and [browser](../e2e/editor.spec.ts) tests. |
 | PR-05 — complete | PR-04 | Metadata controls with local numeric drafts; Copy/Clear/Starting position/Flip. Synchronization, draft retention and commands are covered by [component](../src/app/app.component.spec.ts), [clipboard adapter](../src/app/clipboard.service.spec.ts) and [Chromium](../e2e/editor.spec.ts) tests, including real clipboard writes and failure fallback. |
-| PR-06 — next | PR-04/05 | Pointer Events, capture/cancellation, tap alternative to drag and responsive layout. Cancelled gestures do not change state; touch interactions preserve page scrolling outside the board. |
-| PR-07 | PR-05/06 | Roving keyboard focus, semantic controls, labels, errors and announcements. Full editing without a mouse; automated accessibility checks plus manual keyboard/screen-reader smoke. |
+| PR-06 — complete | PR-04/05 | Pointer capture/cancellation, staged drag/paint, tap movement and responsive controls; [component](../src/app/app.component.spec.ts) and [browser](../e2e/pointer.spec.ts) regressions cover mouse, pen, Chromium Android touch/scroll, narrow layouts and 200% CSS zoom. |
+| PR-07 — next | PR-05/06 | Roving keyboard focus, semantic controls, labels, errors and announcements. Full editing without a mouse; automated accessibility checks plus manual keyboard/screen-reader smoke. |
 | PR-08 | PR-03–07 | Full regression and release checks. CI build/lint/unit/E2E pass; full dependency audit has zero high/critical findings; device checks and limitations recorded. |
 
 After a stage meets acceptance and passes its required checks, mark it `complete` and move `next` to the following unfinished stage. Updating status does not authorize work on that stage.
@@ -36,21 +36,19 @@ The [domain entry point](../src/app/domain/fen/index.ts) is independent of Angul
 
 ## Editor boundaries
 
-One applied position owns all six fields; board and metadata edits use the same domain operations. Orientation, focus, future square selection and numeric drafts are separate UI concerns. Syntax errors block Apply; plausibility warnings remain non-blocking. Draft, numeric-input and command behavior is covered by the PR-04/05 tests above; user instructions live in [README](../README.md#edit-a-position).
+One applied position owns all six fields; board and metadata edits use the same domain operations. Orientation, focus, square selection, gesture previews and numeric drafts are separate UI concerns. Syntax errors block Apply; plausibility warnings remain non-blocking. Editor behavior is covered by the tests above; user instructions live in [README](../README.md#edit-a-position).
 
 Initial state is the starting position, white orientation and Move tool. Reset means the standard starting position, not the last import; Clear resets all six fields. Flip changes display only. Copy exports the applied position and requires no clipboard-read permission. Reset/Clear preserve orientation.
 
-When square selection is introduced in PR-06, preserve its logical identity on Flip and clear it on successful Apply, Starting position and Clear. Existing mouse painting applies each square immediately; staging and rollback of a cancelled stroke belong to PR-06.
+Board composition commits only completed gestures. Touch uses palette selection followed by board taps/strokes, preserving scrolling outside the board. Source selection keeps its logical identity on Flip; replacement commands and tool changes clear it.
 
 ## Interaction and verification
 
-- Pointer drag previews a move and commits on valid drop. Outside drop, Escape, lost capture and `pointercancel` cancel without committing. Stage a multi-square painting stroke as one operation; suppress the synthetic click after a completed drag/stroke.
-- Provide all 12 palette pieces plus move/erase tools. Tap/click placement and source-then-destination movement are alternatives to drag; an empty source selection is a no-op.
 - Board keyboard entry uses one Tab stop with roving focus. Arrows follow visual directions after Flip; Enter/Space activates, Delete/Backspace erases only with board focus, Escape cancels. Do not intercept text-field shortcuts.
 - Verify grid/row/gridcell semantics, named square buttons, pressed tools, labels, error descriptions and polite announcements together. Decorative images must not duplicate names; color alone must not convey selection/errors.
-- Check 320/375/768px and desktop layouts, 200% zoom, contrast and focus. Board cells must remain at least 24 CSS px; toolbar/palette controls target 44px where practical. Scope gesture `touch-action` locally and preserve browser zoom/page scrolling elsewhere.
+- Retain the 320/375/768px, desktop and 200% CSS-zoom layout checks; verify native browser zoom, contrast and focus during accessibility/device checks. Board cells must remain at least 24 CSS px; toolbar/palette controls target 44px where practical.
 - Retain the existing draft/apply, metadata, command and clipboard regressions while extending production-build browser tests for pointer and keyboard interaction.
-- Expand Chromium smoke to Firefox/WebKit core workflows and touch-enabled Android/iPhone emulation. Use real clipboard checks in Chromium plus deterministic adapter tests and manual fallback checks in other engines.
+- Expand Chromium desktop/Android coverage to Firefox/WebKit core workflows and iPhone emulation. Use real clipboard checks in Chromium plus deterministic adapter tests and manual fallback checks in other engines.
 - Before MVP release, record real Android Chrome/iOS Safari touch/scroll/rotate/copy smoke and NVDA/Chrome plus VoiceOver/Safari checks. Emulation is not real-device verification; record unavailable checks as pending.
 
 The main delivery risks are draft/metadata loss, pointer cancellation/scroll behavior and dependency compatibility. Build and test incrementally; keep audit failures visible. Historical migration reports are in Git history rather than maintained as documentation.

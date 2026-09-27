@@ -11,12 +11,33 @@ const importedFen = 'r3k2r/8/8/8/8/8/4P3/R3K2R b Kq a3 17 42';
 describe('FEN editor', () => {
   let fixture: ComponentFixture<AppComponent>;
   let root: HTMLElement;
+  let hitTarget: Element | null;
+
+  // jsdom has no layout or pointer capture. Browser tests verify both natively.
+  function pointer(type: string, target: EventTarget, init: PointerEventInit = {}): void {
+    hitTarget = target instanceof Element ? target : null;
+    const square = hitTarget?.getAttribute('data-square');
+    const index = square ? squareToIndex(square as Parameters<typeof squareToIndex>[0]) : -1;
+    target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, pointerId: 1, pointerType: 'mouse', isPrimary: true,
+      button: 0, buttons: type === 'pointerup' ? 0 : 1,
+      clientX: index * 10, clientY: 10, ...init,
+    }));
+  }
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [AppComponent] }).compileComponents();
     fixture = TestBed.createComponent(AppComponent);
     root = fixture.nativeElement as HTMLElement;
     await fixture.whenStable();
+    hitTarget = null;
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => hitTarget });
+    for (const element of root.querySelectorAll('button')) {
+      let captured: number | null = null;
+      element.setPointerCapture = id => { captured = id; };
+      element.hasPointerCapture = id => captured === id;
+      element.releasePointerCapture = () => { captured = null; };
+    }
   });
 
   afterEach(() => { vi.restoreAllMocks(); });
@@ -94,12 +115,12 @@ describe('FEN editor', () => {
 
   it('moves through board output, and treats self-drop as a no-op', async () => {
     const source = button('e2, white pawn');
-    source.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true }));
-    source.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', source);
+    pointer('pointerup', source);
     await fixture.whenStable();
     expect(button('e2, white pawn')).toBeDefined();
-    source.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true }));
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', source);
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(button('e2, empty')).toBeDefined();
     expect(button('e4, white pawn')).toBeDefined();
@@ -107,22 +128,119 @@ describe('FEN editor', () => {
 
   it('does not move a piece when the drag ends without a drop', async () => {
     const original = fixture.componentInstance.position();
-    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('e2, white pawn').dispatchEvent(new Event('dragend', { bubbles: true }));
+    pointer('pointerdown', button('e2, white pawn'));
+    pointer('pointercancel', button('e2, white pawn'));
     await fixture.whenStable();
     expect(fixture.componentInstance.position()).toBe(original);
     expect(root.querySelector('.dragging')).toBeNull();
   });
 
-  it('stops painting after a mouse release outside the board', async () => {
+  it('rolls back painting after a pointer release outside the board', async () => {
     button('Place black bishop').click();
     await fixture.whenStable();
-    button('a4, empty').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, buttons: 1 }));
-    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    button('b4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 0 }));
+    pointer('pointerdown', button('a4, empty'));
+    pointer('pointerup', document);
+    pointer('pointermove', button('b4, empty'));
     await fixture.whenStable();
-    expect(button('a4, black bishop')).toBeDefined();
+    expect(button('a4, empty')).toBeDefined();
     expect(button('b4, empty')).toBeDefined();
+  });
+
+  it('selects an occupied source and moves with two activations, including replacement and self-cancel', async () => {
+    const original = fixture.componentInstance.position();
+    button('e4, empty').click();
+    await fixture.whenStable();
+    expect(root.querySelector('.selected')).toBeNull();
+    button('e2, white pawn').click();
+    await fixture.whenStable();
+    expect(button('e2, white pawn').getAttribute('aria-pressed')).toBe('true');
+    expect(fixture.componentInstance.position()).toBe(original);
+    button('e2, white pawn').click();
+    await fixture.whenStable();
+    expect(root.querySelector('.selected')).toBeNull();
+    expect(fixture.componentInstance.position()).toBe(original);
+    button('e2, white pawn').click();
+    button('e7, black pawn').click();
+    await fixture.whenStable();
+    expect(button('e2, empty')).toBeDefined();
+    expect(button('e7, white pawn')).toBeDefined();
+    expect(root.querySelector('.selected')).toBeNull();
+  });
+
+  it.each(['Apply FEN', 'Starting position', 'Clear', 'Erase'])('preserves logical selection on Flip and clears it on %s', async command => {
+    button('e2, white pawn').click();
+    button('Flip board').click();
+    await fixture.whenStable();
+    expect(button('e2, white pawn').getAttribute('aria-pressed')).toBe('true');
+    button(command).click();
+    await fixture.whenStable();
+    expect(root.querySelector('.selected')).toBeNull();
+  });
+
+  it('commits a whole stroke once, preserves metadata/drafts and ignores the trailing pointer click', async () => {
+    await applyDraft(importedFen);
+    await applyDraft('invalid draft');
+    await editField('halfmoveClock', '');
+    const original = fixture.componentInstance.position();
+    const errors = root.querySelector('#fen-errors')?.textContent;
+    button('Place white queen').click();
+    await fixture.whenStable();
+    const changes = vi.spyOn(fixture.componentInstance.position, 'update');
+    pointer('pointerdown', button('a4, empty'));
+    pointer('pointermove', button('b4, empty'));
+    await fixture.whenStable();
+    expect(root.querySelectorAll('.preview')).toHaveLength(2);
+    expect(fixture.componentInstance.position()).toBe(original);
+    expect(textarea('applied-fen').value).toBe(importedFen);
+    expect(changes).not.toHaveBeenCalled();
+    pointer('pointerup', button('b4, empty'));
+    await fixture.whenStable();
+    button('a4, white queen').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    await fixture.whenStable();
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(textarea('applied-fen').value).toBe('r3k2r/8/8/8/QQ6/8/4P3/R3K2R b Kq a3 17 42');
+    expect(textarea('fen-draft').value).toBe('invalid draft');
+    expect(field('halfmoveClock').value).toBe('');
+    expect(root.querySelector('#fen-errors')?.textContent).toBe(errors);
+    expect(root.querySelector('.preview')).toBeNull();
+  });
+
+  it.each(['pointercancel', 'lostpointercapture', 'Escape', 'blur', 'resize', 'tool change'])('rolls back a stroke on %s and ignores stale release/click', async reason => {
+    button('Erase').click();
+    await fixture.whenStable();
+    const original = fixture.componentInstance.position();
+    pointer('pointerdown', button('a2, white pawn'));
+    pointer('pointermove', button('b2, white pawn'));
+    await fixture.whenStable();
+    expect(root.querySelectorAll('.preview')).toHaveLength(2);
+    if (reason === 'Escape') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    else if (reason === 'blur' || reason === 'resize') window.dispatchEvent(new Event(reason));
+    else if (reason === 'tool change') button('Move').click();
+    else pointer(reason, button('a2, white pawn'));
+    pointer('pointerup', button('b2, white pawn'));
+    button('a2, white pawn').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    await fixture.whenStable();
+    expect(fixture.componentInstance.position()).toBe(original);
+    expect(root.querySelector('.preview')).toBeNull();
+  });
+
+  it('ignores right buttons, secondary pointers and events from another pointer during a stroke', async () => {
+    button('Erase').click();
+    await fixture.whenStable();
+    const original = fixture.componentInstance.position();
+    pointer('pointerdown', button('a2, white pawn'), { button: 2 });
+    pointer('pointerup', button('a2, white pawn'));
+    pointer('pointerdown', button('a2, white pawn'), { isPrimary: false });
+    pointer('pointerup', button('a2, white pawn'));
+    expect(fixture.componentInstance.position()).toBe(original);
+    pointer('pointerdown', button('a2, white pawn'));
+    pointer('pointermove', button('b2, white pawn'), { pointerId: 2, isPrimary: false });
+    pointer('pointercancel', button('b2, white pawn'), { pointerId: 2 });
+    pointer('pointerup', button('b2, white pawn'), { pointerId: 2 });
+    pointer('pointerup', button('a2, white pawn'));
+    await fixture.whenStable();
+    expect(button('a2, empty')).toBeDefined();
+    expect(button('b2, white pawn')).toBeDefined();
   });
 
   it('keeps typing local, then atomically applies all six fields and canonicalizes the draft', async () => {
@@ -167,17 +285,17 @@ describe('FEN editor', () => {
     await fixture.whenStable();
     button('Move').click();
     await fixture.whenStable();
-    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', button('e2, white pawn'));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     button('Place black bishop').click();
     await fixture.whenStable();
-    button('a4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
-    button('b4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
-    document.dispatchEvent(new MouseEvent('mouseup'));
+    pointer('pointerdown', button('a4, empty'));
+    pointer('pointermove', button('b4, empty'));
+    pointer('pointerup', button('b4, empty'));
     await fixture.whenStable();
-    button('Place black knight').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('a1, white rook').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', button('Place black knight'));
+    pointer('pointerup', button('a1, white rook'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe('r3k2r/8/8/8/bb2P3/8/8/n3K2R b Kq a3 17 42');
     expect(textarea('fen-draft').value).toBe(textarea('applied-fen').value);
@@ -308,33 +426,33 @@ describe('FEN editor', () => {
 
   it('cancels a board drag on valid Apply so a stale drop cannot move the imported piece', async () => {
     await editDraft(importedFen);
-    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('e4, empty').dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', button('e2, white pawn'));
+    pointer('pointermove', button('e4, empty'));
     await fixture.whenStable();
     expect(root.querySelector('.dragging')).not.toBeNull();
     button('Apply FEN').click();
     await fixture.whenStable();
     expect(root.querySelector('.dragging')).toBeNull();
     expect(root.querySelector('.drop-target')).toBeNull();
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(importedFen);
   });
 
   it('cancels palette dragging and painting on valid Apply', async () => {
     await editDraft(importedFen);
-    button('Place white queen').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    pointer('pointerdown', button('Place white queen'));
     button('Apply FEN').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(importedFen);
     button('Place white queen').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
+    pointer('pointerdown', button('e4, empty'));
     await fixture.whenStable();
     await applyDraft(importedFen);
-    button('d4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
+    pointer('pointermove', button('d4, empty'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(importedFen);
     expect(button('d4, empty')).toBeDefined();
@@ -465,8 +583,8 @@ describe('FEN editor', () => {
     await applyDraft('bad draft');
     await editField('halfmoveClock', '');
     await editField('fullmoveNumber', 'bad');
-    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('e4, empty').dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', button('e2, white pawn'));
+    pointer('pointermove', button('e4, empty'));
     button(command).click();
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(expected);
@@ -479,20 +597,20 @@ describe('FEN editor', () => {
     expect(field('fullmoveNumber').value).toBe('1');
     expect(root.querySelectorAll('input[aria-invalid="true"]')).toHaveLength(0);
     expect(root.querySelectorAll('.warnings li')).toHaveLength(command === 'Clear' ? 2 : 0);
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(expected);
     button('Place white queen').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
-    button('Place white queen').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    pointer('pointerdown', button('e4, empty'));
+    pointer('pointerdown', button('Place white queen'));
     button(command).click();
     await fixture.whenStable();
     expect(button('Move').getAttribute('aria-pressed')).toBe('true');
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     button('Place white queen').click();
     await fixture.whenStable();
-    button('d4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
+    pointer('pointermove', button('d4, empty'));
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(expected);
   });
@@ -502,11 +620,11 @@ describe('FEN editor', () => {
     await editField('halfmoveClock', '');
     const original = fixture.componentInstance.position();
     const errors = root.querySelector('#fen-errors')?.textContent;
-    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
-    button('e4, empty').dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    pointer('pointerdown', button('e2, white pawn'));
+    pointer('pointermove', button('e4, empty'));
     button('Flip board').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(fixture.componentInstance.position()).toBe(original);
     expect(textarea('fen-draft').value).toBe('bad FEN');
@@ -515,20 +633,20 @@ describe('FEN editor', () => {
     expect(root.querySelector('.dragging')).toBeNull();
     expect(root.querySelector('.drop-target')).toBeNull();
     expect(root.querySelector('[data-square]')?.getAttribute('data-square')).toBe('h1');
-    button('Place white queen').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    pointer('pointerdown', button('Place white queen'));
     button('Flip board').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    pointer('pointerup', button('e4, empty'));
     await fixture.whenStable();
     expect(fixture.componentInstance.position()).toBe(original);
     button('Place white queen').click();
     await fixture.whenStable();
-    button('e4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
+    pointer('pointerdown', button('e4, empty'));
     await fixture.whenStable();
     const painted = fixture.componentInstance.position();
     button('Flip board').click();
     await fixture.whenStable();
-    button('d4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
+    pointer('pointermove', button('d4, empty'));
     await fixture.whenStable();
     expect(fixture.componentInstance.position()).toBe(painted);
     expect(button('Place white queen').getAttribute('aria-pressed')).toBe('true');
