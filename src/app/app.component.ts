@@ -1,12 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal, viewChild } from '@angular/core';
 import { ChessBoardComponent } from './components/chess-board/chess-board.component';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
 import { PIECES } from './components/chess-board/chess-piece/piece-assets';
-import { DefaultFenString, createFenString, parseFenString } from './components/chess-board/utils/fen-string';
-import { ChessBoard } from './types/chess-board';
-import { PieceEnum } from './types/piece.enum';
-import { PieceMove } from './types/piece-move';
-import { SquareIndex } from './types/square-index';
+import {
+  FenError, FenPosition, Piece, Square, getFenWarnings, movePiece, parseFen,
+  placePiece, removePiece, serializeFen, squareToIndex,
+} from './domain/fen';
+import { describeFenError, describeFenWarning } from './fen-messages';
+
+function startingPosition(): FenPosition {
+  const result = parseFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  if (!result.ok) throw new Error('Invalid starting position.');
+  return result.position;
+}
 
 @Component({
   selector: 'app-root',
@@ -16,25 +22,59 @@ import { SquareIndex } from './types/square-index';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
-  // Temporary placement-only adapter. PR-03/04 replaces ChessBoard with FenPosition.
-  readonly board = signal(parseFenString(DefaultFenString));
-  readonly placement = computed(() => createFenString(this.board()));
-  readonly tool = signal<PieceEnum | null>(null);
-  readonly draggedPiece = signal<PieceEnum | null>(null);
+  readonly position = signal(startingPosition());
+  readonly canonicalFen = computed(() => serializeFen(this.position()));
+  // A null draft follows the applied position. An explicit draft survives board edits,
+  // even if a later edit happens to produce the same FEN.
+  private readonly draft = signal<string | null>(null);
+  readonly fenDraft = computed(() => this.draft() ?? this.canonicalFen());
+  readonly hasUnappliedDraft = computed(() => this.draft() !== null);
+  readonly errors = signal<readonly FenError[]>([]);
+  readonly warnings = computed(() => getFenWarnings(this.position()));
+  readonly describeError = describeFenError;
+  readonly describeWarning = describeFenWarning;
+  readonly tool = signal<Piece | 'erase' | null>(null);
+  readonly draggedPiece = signal<Piece | null>(null);
   readonly blackPieces = PIECES.filter(piece => piece.color === 'black');
   readonly whitePieces = PIECES.filter(piece => piece.color === 'white');
-  readonly erase = PieceEnum.NONE;
+  private readonly chessBoard = viewChild(ChessBoardComponent);
 
-  selectTool(piece: PieceEnum | null): void {
+  editFenDraft(text: string): void {
+    this.draft.set(text === this.canonicalFen() ? null : text);
+    this.errors.set([]);
+  }
+
+  applyFen(event: Event, input: HTMLTextAreaElement): void {
+    event.preventDefault();
+    const result = parseFen(this.fenDraft());
+    if (!result.ok) {
+      this.errors.set(result.errors);
+      input.focus();
+      const { start, end } = result.errors[0].span;
+      input.setSelectionRange(start, end);
+      return;
+    }
+    this.chessBoard()?.cancelInteraction();
+    this.draggedPiece.set(null);
+    this.position.set(result.position);
+    this.useCurrentPosition();
+  }
+
+  useCurrentPosition(): void {
+    this.draft.set(null);
+    this.errors.set([]);
+  }
+
+  selectTool(piece: Piece | 'erase' | null): void {
     this.tool.set(piece);
   }
 
-  place(square: SquareIndex): void {
+  place(square: Square): void {
     const piece = this.tool();
-    if (piece !== null) this.setPiece(square, piece);
+    if (piece !== null) this.setPiece(square, piece === 'erase' ? null : piece);
   }
 
-  dropPalettePiece(square: SquareIndex): void {
+  dropPalettePiece(square: Square): void {
     const piece = this.draggedPiece();
     if (piece === null) return;
     this.setPiece(square, piece);
@@ -42,26 +82,21 @@ export class AppComponent {
     this.draggedPiece.set(null);
   }
 
-  startPaletteDrag(event: DragEvent, piece: PieceEnum): void {
+  startPaletteDrag(event: DragEvent, piece: Piece): void {
     this.draggedPiece.set(piece);
     event.dataTransfer?.setData('text/plain', String(piece));
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
-  move(move: PieceMove): void {
-    if (move.src.isEquals(move.dst) || this.board().getPieceAt(move.src) === PieceEnum.NONE) return;
-    this.updateBoard(board => board.movePiece(move));
+  move(move: { from: Square; to: Square }): void {
+    const position = this.position();
+    if (move.from === move.to || position.board[squareToIndex(move.from)] === null) return;
+    this.position.set(movePiece(position, move.from, move.to));
   }
 
-  private setPiece(square: SquareIndex, piece: PieceEnum): void {
-    if (this.board().getPieceAt(square) === piece) return;
-    this.updateBoard(board => board.setPieceAt(square, piece));
-  }
-
-  private updateBoard(change: (board: ChessBoard) => void): void {
-    const next = ChessBoard.createEmpty();
-    this.board().getPieces().forEach((piece, index) => next.setPieceAt(new SquareIndex(index), piece));
-    change(next);
-    this.board.set(next);
+  private setPiece(square: Square, piece: Piece | null): void {
+    const position = this.position();
+    if (position.board[squareToIndex(square)] === piece) return;
+    this.position.set(piece === null ? removePiece(position, square) : placePiece(position, square, piece));
   }
 }

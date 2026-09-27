@@ -1,8 +1,8 @@
 # FEN Editor
 
-A chess position editor built with Angular 22, standalone components and zoneless change detection. Place, erase, paint and drag pieces; the current readonly output is **piece placement only**, the first FEN field.
+A chess position editor built with Angular 22, standalone components and zoneless change detection. Import and edit all six FEN fields, or place, erase, paint and drag pieces on the board. Board composition preserves the active color, castling rights, en passant target and move counters.
 
-The independently tested [FEN domain core](src/app/domain/fen/index.ts) supports all six fields, structured syntax errors, plausibility warnings and immutable position updates. Connecting it to the editor and replacing the legacy parser is the next stage (PR-04).
+The editor uses the immutable [FEN domain core](src/app/domain/fen/index.ts). Dedicated metadata controls and Copy/Clear/Starting position/Flip commands are planned for PR-05.
 
 [Roadmap and MVP decisions](docs/ROADMAP.md) · [Agent instructions](AGENTS.md)
 
@@ -16,6 +16,12 @@ npm start
 ```
 
 Open [localhost:4200](http://localhost:4200).
+
+## Edit a position
+
+- Enter all six fields in **FEN draft**, then choose **Apply FEN** or press Enter. Valid input replaces the whole position and is normalized; invalid input stays in the draft with inline errors and the first error selected.
+- **Applied FEN** always shows the canonical position on the board. Board edits refresh a clean draft and preserve unapplied text. **Use current position** discards the draft and its errors.
+- Plausibility warnings describe the applied position and do not block editing or importing. Select the Applied FEN text to copy it manually.
 
 ## Checks
 

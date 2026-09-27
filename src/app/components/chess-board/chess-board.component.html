@@ -7,24 +7,24 @@
       @for (rank of ranks(); track rank) { <span>{{ rank }}</span> }
     </div>
     <div class="board" role="group" aria-label="Chessboard">
-      @for (square of squares(); track square.index.value) {
+      @for (square of squares(); track square.name) {
         <button type="button" class="square"
           [class.dark]="square.dark"
-          [class.dragging]="draggedSquare()?.value === square.index.value"
-          [class.drop-target]="dropTarget()?.value === square.index.value"
+          [class.dragging]="draggedSquare() === square.name"
+          [class.drop-target]="dropTarget() === square.name"
           [attr.data-square]="square.name"
-          [attr.aria-label]="square.name + ', ' + pieceLabel(board().getPieceAt(square.index))"
-          [draggable]="dragEnabled() && board().getPieceAt(square.index) !== none"
-          (click)="activate(square.index)"
-          (mousedown)="beginPaint($event, square.index)"
-          (mouseenter)="continuePaint($event, square.index)"
-          (dragstart)="startDrag($event, square.index)"
-          (dragover)="dragOver($event, square.index)"
+          [attr.aria-label]="square.name + ', ' + pieceLabel(board()[square.index])"
+          [draggable]="dragEnabled() && board()[square.index] !== null"
+          (click)="activate(square.name)"
+          (mousedown)="beginPaint($event, square.name)"
+          (mouseenter)="continuePaint($event, square.name)"
+          (dragstart)="startDrag($event, square.name)"
+          (dragover)="dragOver($event, square.name)"
           (dragleave)="dropTarget.set(null)"
-          (drop)="drop($event, square.index)"
+          (drop)="drop($event, square.name)"
           (dragend)="cancelInteraction()">
-          @if (board().getPieceAt(square.index) !== none) {
-            <app-chess-piece [piece]="board().getPieceAt(square.index)" />
+          @if (board()[square.index]; as piece) {
+            <app-chess-piece [piece]="piece" />
           }
         </button>
       }

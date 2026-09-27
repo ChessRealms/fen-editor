@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { PieceEnum } from '../../../types/piece.enum';
+import { Piece } from '../../../domain/fen';
 import { PIECES } from './piece-assets';
 
 @Component({
@@ -9,6 +9,6 @@ import { PIECES } from './piece-assets';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChessPieceComponent {
-  readonly piece = input.required<PieceEnum>();
+  readonly piece = input.required<Piece>();
   readonly asset = computed(() => PIECES.find(piece => piece.value === this.piece())?.asset);
 }
