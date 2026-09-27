@@ -3,9 +3,10 @@ main { max-width: 38rem; margin: 2rem auto; padding: 0 1rem 2rem; }
 h1 { margin: 0 0 .5rem; font-size: 2rem; }
 header p { color: #46534a; line-height: 1.5; }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: .8rem; }
-.palette { display: grid; grid-template-columns: repeat(6, minmax(0, 3rem)); gap: .4rem; justify-content: center; }
-.piece-tool { width: 100%; min-width: 0; height: 3rem; padding: .2rem; }
+.palette { display: grid; grid-template-columns: repeat(6, minmax(44px, 3rem)); gap: .25rem; justify-content: center; }
+.piece-tool { width: 100%; min-width: 44px; height: 3rem; padding: .2rem; user-select: none; touch-action: manipulation; }
 .tools { display: flex; gap: .5rem; }
+.tools button, .fen-actions button { min-height: 44px; }
 .tools button { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .8rem; }
 button[aria-pressed="true"] { background: #c5dfce; border-color: #225f3c; }
 button:disabled { cursor: wait; opacity: .65; }
@@ -24,3 +25,6 @@ textarea[aria-invalid="true"] { border: 2px solid #a12622; }
 .errors p, .warnings h2 { margin: 0 0 .5rem; font-size: 1rem; }
 .errors ul, .warnings ul { margin: .5rem 0 0; padding-left: 1.2rem; }
 .first-error { font-weight: 600; }
+@media (max-width: 380px) {
+  main { margin-top: 1rem; padding-inline: .75rem; }
+}

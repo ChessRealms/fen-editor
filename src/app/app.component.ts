@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
-import { ChessBoardComponent } from './components/chess-board/chess-board.component';
+import { ChessBoardComponent, PaintStroke } from './components/chess-board/chess-board.component';
 import { ChessPieceComponent } from './components/chess-board/chess-piece/chess-piece.component';
 import { PIECES } from './components/chess-board/chess-piece/piece-assets';
 import { MetadataControlsComponent } from './components/metadata-controls/metadata-controls.component';
@@ -42,7 +42,6 @@ export class AppComponent {
   readonly describeError = describeFenError;
   readonly describeWarning = describeFenWarning;
   readonly tool = signal<Piece | 'erase' | null>(null);
-  readonly draggedPiece = signal<Piece | null>(null);
   readonly isBlackView = signal(false);
   readonly copyPending = signal(false);
   private readonly copyResult = signal<{ fen: string; message: string } | null>(null);
@@ -119,6 +118,7 @@ export class AppComponent {
 
   private replacePosition(position: FenPosition): void {
     this.cancelInteraction();
+    this.chessBoard()?.selectedSquare.set(null);
     this.position.set(position);
     this.metadataControls()?.resetDrafts();
     this.useCurrentPosition();
@@ -127,41 +127,39 @@ export class AppComponent {
 
   private cancelInteraction(): void {
     this.chessBoard()?.cancelInteraction();
-    this.draggedPiece.set(null);
   }
 
   selectTool(piece: Piece | 'erase' | null): void {
+    this.cancelInteraction();
+    this.chessBoard()?.selectedSquare.set(null);
     this.tool.set(piece);
   }
 
-  place(square: Square): void {
-    const piece = this.tool();
-    if (piece !== null) this.setPiece(square, piece === 'erase' ? null : piece);
+  selectPaletteTool(event: MouseEvent, piece: Piece): void {
+    if (event.detail === 0) this.selectTool(piece);
   }
 
-  dropPalettePiece(square: Square): void {
-    const piece = this.draggedPiece();
-    if (piece === null) return;
-    this.setPiece(square, piece);
+  startPalettePointer(event: PointerEvent, piece: Piece): void {
+    this.chessBoard()?.beginPalettePointer(event, piece);
+  }
+
+  paint(stroke: PaintStroke): void {
+    // Publish one immutable position per completed stroke; drafts and metadata
+    // follow the same path as a single-square edit.
+    this.position.update(position => stroke.squares.reduce((current, square) => {
+      if (current.board[squareToIndex(square)] === stroke.piece) return current;
+      return stroke.piece === null ? removePiece(current, square) : placePiece(current, square, stroke.piece);
+    }, position));
+  }
+
+  dropPalettePiece(drop: { square: Square; piece: Piece }): void {
+    this.paint({ squares: [drop.square], piece: drop.piece });
     this.tool.set(null);
-    this.draggedPiece.set(null);
-  }
-
-  startPaletteDrag(event: DragEvent, piece: Piece): void {
-    this.draggedPiece.set(piece);
-    event.dataTransfer?.setData('text/plain', String(piece));
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
   move(move: { from: Square; to: Square }): void {
     const position = this.position();
     if (move.from === move.to || position.board[squareToIndex(move.from)] === null) return;
     this.position.set(movePiece(position, move.from, move.to));
-  }
-
-  private setPiece(square: Square, piece: Piece | null): void {
-    const position = this.position();
-    if (position.board[squareToIndex(square)] === piece) return;
-    this.position.set(piece === null ? removePiece(position, square) : placePiece(position, square, piece));
   }
 }

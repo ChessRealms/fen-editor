@@ -1,37 +1,35 @@
 <main>
   <header>
     <h1>FEN Editor</h1>
-    <p>Choose a piece to place it. Use Move to drag pieces, or Erase to remove them.</p>
+    <p id="board-help">Choose a piece or Erase, then tap or paint squares. With Move, drag a piece or tap its square and then a destination. Release on the board to apply; release outside or press Escape to cancel.</p>
   </header>
 
   <section class="editor" aria-label="Position editor">
     <div class="palette" role="group" aria-label="Black pieces">
       @for (piece of blackPieces; track piece.value) {
-        <button type="button" class="piece-tool" draggable="true"
+        <button type="button" class="piece-tool"
           [attr.aria-label]="'Place ' + piece.label"
           [attr.aria-pressed]="tool() === piece.value"
-          (click)="selectTool(piece.value)"
-          (dragstart)="startPaletteDrag($event, piece.value)"
-          (dragend)="draggedPiece.set(null)">
+          (click)="selectPaletteTool($event, piece.value)"
+          (pointerdown)="startPalettePointer($event, piece.value)">
           <app-chess-piece [piece]="piece.value" />
         </button>
       }
     </div>
 
-    <app-chess-board [board]="position().board" [dragEnabled]="tool() === null"
-      [paintEnabled]="tool() !== null" [isBlackView]="isBlackView()"
-      (squareActivated)="place($event)"
+    <app-chess-board [board]="position().board" [tool]="tool()" [isBlackView]="isBlackView()"
+      (strokeCompleted)="paint($event)"
       (pieceMoved)="move($event)"
+      (paletteSelected)="selectTool($event)"
       (paletteDropped)="dropPalettePiece($event)" />
 
     <div class="palette" role="group" aria-label="White pieces">
       @for (piece of whitePieces; track piece.value) {
-        <button type="button" class="piece-tool" draggable="true"
+        <button type="button" class="piece-tool"
           [attr.aria-label]="'Place ' + piece.label"
           [attr.aria-pressed]="tool() === piece.value"
-          (click)="selectTool(piece.value)"
-          (dragstart)="startPaletteDrag($event, piece.value)"
-          (dragend)="draggedPiece.set(null)">
+          (click)="selectPaletteTool($event, piece.value)"
+          (pointerdown)="startPalettePointer($event, piece.value)">
           <app-chess-piece [piece]="piece.value" />
         </button>
       }

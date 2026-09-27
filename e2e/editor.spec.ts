@@ -209,7 +209,7 @@ for (const failure of ['denied', 'unavailable']) {
   });
 }
 
-test('moves a board piece with native drag and drop', async ({ page }) => {
+test('moves a board piece with pointer drag and drop', async ({ page }) => {
   await page.getByRole('button', { name: 'e2, white pawn', exact: true }).dragTo(
     page.getByRole('button', { name: 'e4, empty', exact: true }),
   );
@@ -228,7 +228,7 @@ test('drags a palette piece onto an occupied square', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Move', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('keeps mouse painting and stops it after release outside the board', async ({ page }) => {
+test('rolls back mouse painting after release outside the board', async ({ page }) => {
   await page.getByRole('button', { name: 'Place white rook', exact: true }).click();
   const a4 = page.locator('[data-square="a4"]');
   const b4 = page.locator('[data-square="b4"]');
@@ -238,8 +238,8 @@ test('keeps mouse painting and stops it after release outside the board', async 
   await page.getByRole('heading', { name: 'FEN Editor', exact: true }).hover();
   await page.mouse.up();
   await page.locator('[data-square="c4"]').hover();
-  await expect(a4).toHaveAccessibleName('a4, white rook');
-  await expect(b4).toHaveAccessibleName('b4, white rook');
+  await expect(a4).toHaveAccessibleName('a4, empty');
+  await expect(b4).toHaveAccessibleName('b4, empty');
   await expect(page.locator('[data-square="c4"]')).toHaveAccessibleName('c4, empty');
 });
 
@@ -254,8 +254,7 @@ test('imports on Enter, canonicalizes and preserves metadata through board compo
   await expect(applied).toHaveValue(importedFen);
   await expect(draft).toHaveValue(importedFen);
   await expect(page.locator('#fen-status')).toContainText('Draft matches');
-  // Import leaves focus below the board. Keep both endpoints visible so dragTo
-  // does not scroll the destination into view between mousedown and dragstart.
+  // Import leaves focus below the board. Keep both pointer endpoints visible.
   await page.getByRole('group', { name: 'Chessboard', exact: true }).scrollIntoViewIfNeeded();
   await page.getByRole('button', { name: 'e2, white pawn', exact: true }).dragTo(
     page.getByRole('button', { name: 'e4, empty', exact: true }),
