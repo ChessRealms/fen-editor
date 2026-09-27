@@ -1,10 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { ChessPieceComponent } from './chess-piece/chess-piece.component';
 import { pieceLabel } from './chess-piece/piece-assets';
-import { ChessBoard } from '../../types/chess-board';
-import { SquareIndex } from '../../types/square-index';
-import { PieceEnum } from '../../types/piece.enum';
-import { PieceMove } from '../../types/piece-move';
+import { FenPosition, Square, indexToSquare, squareToIndex } from '../../domain/fen';
 
 @Component({
   selector: 'app-chess-board',
@@ -19,68 +16,67 @@ import { PieceMove } from '../../types/piece-move';
   },
 })
 export class ChessBoardComponent {
-  readonly board = input.required<ChessBoard>();
+  readonly board = input.required<FenPosition['board']>();
   readonly dragEnabled = input(true);
   readonly paintEnabled = input(false);
   readonly isBlackView = input(false);
-  readonly squareActivated = output<SquareIndex>();
-  readonly pieceMoved = output<PieceMove>();
-  readonly paletteDropped = output<SquareIndex>();
-  readonly draggedSquare = signal<SquareIndex | null>(null);
-  readonly dropTarget = signal<SquareIndex | null>(null);
-  readonly none = PieceEnum.NONE;
+  readonly squareActivated = output<Square>();
+  readonly pieceMoved = output<{ from: Square; to: Square }>();
+  readonly paletteDropped = output<Square>();
+  readonly draggedSquare = signal<Square | null>(null);
+  readonly dropTarget = signal<Square | null>(null);
   readonly pieceLabel = pieceLabel;
   readonly squares = computed(() => Array.from({ length: 64 }, (_, index) => {
-    const square = new SquareIndex(this.isBlackView() ? 63 - index : index);
+    const square = this.isBlackView() ? 63 - index : index;
     return {
       index: square,
-      name: 'abcdefgh'[square.fileIndex] + (8 - square.rankIndex),
-      dark: (square.fileIndex + square.rankIndex) % 2 === 1,
+      name: indexToSquare(square),
+      dark: (square % 8 + Math.floor(square / 8)) % 2 === 1,
     };
   }));
   readonly files = computed(() => (this.isBlackView() ? 'hgfedcba' : 'abcdefgh').split(''));
   readonly ranks = computed(() => (this.isBlackView() ? '12345678' : '87654321').split(''));
   private painting = false;
 
-  beginPaint(event: MouseEvent, square: SquareIndex): void {
+  beginPaint(event: MouseEvent, square: Square): void {
     if (event.button !== 0 || !this.paintEnabled()) return;
     this.painting = true;
     this.squareActivated.emit(square);
   }
 
-  continuePaint(event: MouseEvent, square: SquareIndex): void {
+  continuePaint(event: MouseEvent, square: Square): void {
     if ((event.buttons & 1) === 0) this.endPaint();
     if (this.painting && this.paintEnabled()) this.squareActivated.emit(square);
   }
 
   endPaint(): void { this.painting = false; }
 
-  activate(square: SquareIndex): void {
+  activate(square: Square): void {
     // Handles clicks and native button keyboard activation as well as mouse painting.
     // The parent ignores duplicate writes of the same piece.
     this.squareActivated.emit(square);
   }
 
-  startDrag(event: DragEvent, square: SquareIndex): void {
-    if (!this.dragEnabled() || this.board().getPieceAt(square) === PieceEnum.NONE) {
+  startDrag(event: DragEvent, square: Square): void {
+    if (!this.dragEnabled() || this.board()[squareToIndex(square)] === null) {
       event.preventDefault();
       return;
     }
     this.endPaint();
     this.draggedSquare.set(square);
-    event.dataTransfer?.setData('text/plain', String(square.value));
+    event.dataTransfer?.setData('text/plain', square);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   }
 
-  dragOver(event: DragEvent, square: SquareIndex): void {
+  dragOver(event: DragEvent, square: Square): void {
     event.preventDefault();
     this.dropTarget.set(square);
   }
 
-  drop(event: DragEvent, square: SquareIndex): void {
+  drop(event: DragEvent, square: Square): void {
     event.preventDefault();
     const source = this.draggedSquare();
-    if (source) this.pieceMoved.emit({ src: source, dst: square });
+    if (source) this.pieceMoved.emit({ from: source, to: square });
     else this.paletteDropped.emit(square);
     this.cancelInteraction();
   }

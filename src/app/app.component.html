@@ -18,7 +18,7 @@
       }
     </div>
 
-    <app-chess-board [board]="board()" [dragEnabled]="tool() === null"
+    <app-chess-board [board]="position().board" [dragEnabled]="tool() === null"
       [paintEnabled]="tool() !== null"
       (squareActivated)="place($event)"
       (pieceMoved)="move($event)"
@@ -41,13 +41,57 @@
       <button type="button" [attr.aria-pressed]="tool() === null" (click)="selectTool(null)">
         <img src="assets/hand.svg" alt="" width="22" height="22" /> Move
       </button>
-      <button type="button" [attr.aria-pressed]="tool() === erase" (click)="selectTool(erase)">
+      <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="selectTool('erase')">
         <img src="assets/trash-bucket.svg" alt="" width="22" height="22" /> Erase
       </button>
     </div>
 
-    <label for="placement">Piece placement</label>
-    <input id="placement" [value]="placement()" readonly aria-describedby="placement-help" spellcheck="false" />
-    <p id="placement-help" class="hint">Piece placement only. Select the text to copy it.</p>
+    <form class="fen-form" (submit)="applyFen($event, fenInput)">
+      <label for="fen-draft">FEN draft</label>
+      <p id="fen-help" class="hint">Enter all six fields. Apply or press Enter to replace the position.</p>
+      <textarea #fenInput id="fen-draft" rows="3" [value]="fenDraft()"
+        (input)="editFenDraft(fenInput.value)" (keydown.enter)="applyFen($event, fenInput)"
+        [attr.aria-invalid]="errors().length ? 'true' : null"
+        [attr.aria-describedby]="errors().length ? 'fen-help fen-status fen-errors' : 'fen-help fen-status'"
+        spellcheck="false" autocapitalize="off"></textarea>
+      <p id="fen-status" class="hint" [class.unapplied]="hasUnappliedDraft()" role="status">
+        @if (hasUnappliedDraft()) {
+          Unapplied changes. Apply replaces the complete position.
+        } @else {
+          Draft matches the applied position.
+        }
+      </p>
+      @if (errors().length) {
+        <div id="fen-errors" class="errors" role="alert">
+          <p>FEN was not applied. Fix the highlighted error and apply again.</p>
+          <ul>
+            @for (error of errors(); track $index) {
+              <li [class.first-error]="$first">{{ describeError(error) }}</li>
+            }
+          </ul>
+        </div>
+      }
+      <div class="fen-actions">
+        <button type="submit">Apply FEN</button>
+        <button type="button" (click)="useCurrentPosition()">Use current position</button>
+      </div>
+    </form>
+
+    <label for="applied-fen">Applied FEN</label>
+    <textarea id="applied-fen" rows="3" [value]="canonicalFen()" readonly
+      aria-describedby="applied-fen-help" spellcheck="false"></textarea>
+    <p id="applied-fen-help" class="hint">Canonical FEN for the board above. Select the text to copy it.</p>
+
+    @if (warnings().length) {
+      <section class="warnings" aria-labelledby="warnings-heading">
+        <h2 id="warnings-heading">Applied position warnings</h2>
+        <p class="hint">These plausibility checks do not block editing or applying FEN.</p>
+        <ul>
+          @for (warning of warnings(); track $index) {
+            <li>{{ describeWarning(warning) }}</li>
+          }
+        </ul>
+      </section>
+    }
   </section>
 </main>
