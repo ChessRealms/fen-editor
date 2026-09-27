@@ -1,4 +1,4 @@
-<section aria-labelledby="metadata-heading">
+<section aria-labelledby="metadata-heading" aria-describedby="metadata-help">
   <h2 id="metadata-heading">Position details</h2>
   <p id="metadata-help" class="hint">Changes apply immediately. They do not move pieces or advance the game.</p>
   <div class="fields">
@@ -42,9 +42,8 @@
           (blur)="canonicalizeCounter(counter.key)" (keydown)="counterKeydown($event, counter.key)"
           [attr.aria-invalid]="counterError(counter.key) ? 'true' : null"
           [attr.aria-describedby]="counterError(counter.key) ? 'counter-help ' + counter.key + '-error' : 'counter-help'" />
-        @if (counterError(counter.key); as error) {
-          <p class="error" [id]="counter.key + '-error'">{{ error }}</p>
-        }
+        <p class="error" [class.sr-only]="!counterError(counter.key)" [id]="counter.key + '-error'"
+          aria-live="polite" aria-atomic="true">{{ counterError(counter.key) }}</p>
       </div>
     }
   </div>

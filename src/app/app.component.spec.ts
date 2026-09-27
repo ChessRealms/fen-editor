@@ -113,6 +113,68 @@ describe('FEN editor', () => {
     expect(button('e4, empty')).toBeDefined();
   });
 
+  it('announces selection, cancellation and committed edits, but not pointer previews', async () => {
+    const status = root.querySelector('[aria-label="Editor status"]')!;
+    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(status.getAttribute('aria-atomic')).toBe('true');
+    expect(status.textContent?.trim()).toBe('');
+    button('e2, white pawn').click();
+    await fixture.whenStable();
+    expect(status.textContent).toContain('white pawn on e2 selected.');
+    button('e2, white pawn').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    expect(status.textContent).toContain('Interaction canceled.');
+    button('Place white queen').click();
+    await fixture.whenStable();
+    const beforePreview = status.textContent;
+    pointer('pointerdown', button('e4, empty'));
+    pointer('pointermove', button('d4, empty'));
+    await fixture.whenStable();
+    expect(status.textContent).toBe(beforePreview);
+    pointer('pointerup', button('d4, empty'));
+    await fixture.whenStable();
+    expect(status.textContent).toContain('white queen placed on 2 squares.');
+  });
+
+  it('announces repeated commands and makes numeric errors available in a persistent polite region', async () => {
+    const status = root.querySelector('[aria-label="Editor status"]')!;
+    button('Clear').click();
+    await fixture.whenStable();
+    expect(status.textContent).toContain('Board cleared. Move tool selected. 2 position warnings.');
+    const firstMessage = status.querySelector('span');
+    button('Clear').click();
+    await fixture.whenStable();
+    expect(status.querySelector('span')).not.toBe(firstMessage);
+    const error = root.querySelector('#fullmoveNumber-error')!;
+    expect(error.getAttribute('aria-live')).toBe('polite');
+    expect(error.textContent).toBe('');
+    await editField('fullmoveNumber', '0');
+    expect(error.textContent).toContain('Enter a whole number from 1');
+    field('fullmoveNumber').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    expect(error.textContent).toBe('');
+    expect(root.querySelector('#fullmoveNumber-error')).toBe(error);
+  });
+
+  it('ignores composing and modified board deletion keys and cancels stale gestures on keyboard erase', async () => {
+    const source = button('e2, white pawn');
+    for (const init of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }, { isComposing: true }]) {
+      source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, ...init }));
+      await fixture.whenStable();
+      expect(textarea('applied-fen').value).toBe(startingFen);
+    }
+    pointer('pointerdown', source);
+    pointer('pointermove', button('e4, empty'));
+    source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    await fixture.whenStable();
+    expect(button('e2, empty')).toBeDefined();
+    expect(root.querySelector('.dragging')).toBeNull();
+    pointer('pointerup', button('e4, empty'));
+    await fixture.whenStable();
+    expect(button('e4, empty')).toBeDefined();
+    expect(textarea('applied-fen').value).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1');
+  });
+
   it('moves through board output, and treats self-drop as a no-op', async () => {
     const source = button('e2, white pawn');
     pointer('pointerdown', source);

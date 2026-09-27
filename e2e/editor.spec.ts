@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => { await page.goto('/'); });
 
 test('boots zoneless and serves the board, all pieces and tool assets', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'FEN Editor' })).toBeVisible();
-  await expect(page.getByRole('group', { name: 'Chessboard', exact: true }).getByRole('button')).toHaveCount(64);
+  await expect(page.getByRole('grid', { name: 'Chessboard', exact: true }).getByRole('button')).toHaveCount(64);
   await expect(page.getByRole('button', { name: /^Place / })).toHaveCount(12);
   await expect(page.getByLabel('FEN draft', { exact: true })).toHaveValue(startingFen);
   await expect(page.getByLabel('FEN draft', { exact: true })).toBeEditable();
@@ -162,7 +162,7 @@ test('Flip preserves drafts and logical square identities for placement and drag
   await page.getByRole('button', { name: 'Place white queen', exact: true }).click();
   await page.getByRole('button', { name: 'd5, empty', exact: true }).click();
   await page.getByRole('button', { name: 'Move', exact: true }).click();
-  await page.getByRole('group', { name: 'Chessboard', exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole('grid', { name: 'Chessboard', exact: true }).scrollIntoViewIfNeeded();
   await page.getByRole('button', { name: 'e2, white pawn', exact: true }).dragTo(
     page.getByRole('button', { name: 'e4, empty', exact: true }),
   );
@@ -255,7 +255,7 @@ test('imports on Enter, canonicalizes and preserves metadata through board compo
   await expect(draft).toHaveValue(importedFen);
   await expect(page.locator('#fen-status')).toContainText('Draft matches');
   // Import leaves focus below the board. Keep both pointer endpoints visible.
-  await page.getByRole('group', { name: 'Chessboard', exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole('grid', { name: 'Chessboard', exact: true }).scrollIntoViewIfNeeded();
   await page.getByRole('button', { name: 'e2, white pawn', exact: true }).dragTo(
     page.getByRole('button', { name: 'e4, empty', exact: true }),
   );

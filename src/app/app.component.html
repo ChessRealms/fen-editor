@@ -2,6 +2,7 @@
   <header>
     <h1>FEN Editor</h1>
     <p id="board-help">Choose a piece or Erase, then tap or paint squares. With Move, drag a piece or tap its square and then a destination. Release on the board to apply; release outside or press Escape to cancel.</p>
+    <p id="board-keyboard-help">Keyboard: Tab enters or leaves the board. Arrow keys move focus; Home/End jump to the row edges, Ctrl+Home/End to the board corners. Enter/Space uses the selected tool. Delete/Backspace erases the focused square. Escape cancels selection.</p>
   </header>
 
   <section class="editor" aria-label="Position editor">
@@ -21,7 +22,8 @@
       (strokeCompleted)="paint($event)"
       (pieceMoved)="move($event)"
       (paletteSelected)="selectTool($event)"
-      (paletteDropped)="dropPalettePiece($event)" />
+      (paletteDropped)="dropPalettePiece($event)"
+      (announced)="announce($event)" />
 
     <div class="palette" role="group" aria-label="White pieces">
       @for (piece of whitePieces; track piece.value) {
@@ -49,6 +51,10 @@
       <button type="button" (click)="clearPosition()">Clear</button>
       <button type="button" [attr.aria-pressed]="isBlackView()" (click)="flipBoard()">Flip board</button>
     </div>
+
+    <p class="hint editor-status" role="status" aria-live="polite" aria-atomic="true" aria-label="Editor status">
+      @for (message of announcements(); track message) { <span>{{ message.text }}</span> }
+    </p>
 
     <app-metadata-controls [metadata]="position()" (metadataChanged)="editMetadata($event)" />
 

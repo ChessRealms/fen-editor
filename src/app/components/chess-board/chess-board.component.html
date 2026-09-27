@@ -6,23 +6,32 @@
     <div class="ranks" aria-hidden="true">
       @for (rank of ranks(); track rank) { <span>{{ rank }}</span> }
     </div>
-    <div #boardElement class="board" role="group" aria-label="Chessboard" aria-describedby="board-help">
-      @for (square of squares(); track square.name) {
-        <button type="button" class="square"
-          [class.dark]="square.dark"
-          [class.dragging]="draggedSquare() === square.name"
-          [class.drop-target]="dropTarget() === square.name"
-          [class.selected]="selectedSquare() === square.name"
-          [class.preview]="previewSquares().has(square.name)"
-          [attr.data-square]="square.name"
-          [attr.aria-label]="square.name + ', ' + pieceLabel(board()[square.index])"
-          [attr.aria-pressed]="selectedSquare() === square.name"
-          (click)="activate($event, square.name)"
-          (pointerdown)="beginPointer($event, square.name)">
-          @if (previewBoard()[square.index]; as piece) {
-            <app-chess-piece [piece]="piece" />
+    <div #boardElement class="board" role="grid" aria-label="Chessboard" aria-describedby="board-keyboard-help">
+      @for (row of rows(); track row[0].name[1]) {
+        <div class="rank-row" role="row">
+          @for (square of row; track square.name) {
+            <div class="cell" role="gridcell">
+              <button type="button" class="square"
+                [class.dark]="square.dark"
+                [class.dragging]="draggedSquare() === square.name"
+                [class.drop-target]="dropTarget() === square.name"
+                [class.selected]="selectedSquare() === square.name"
+                [class.preview]="previewSquares().has(square.name)"
+                [attr.data-square]="square.name"
+                [attr.aria-label]="square.name + ', ' + pieceLabel(board()[square.index])"
+                [attr.aria-pressed]="selectedSquare() === square.name"
+                [tabIndex]="focusedSquare() === square.name ? 0 : -1"
+                (focus)="focusedSquare.set(square.name)"
+                (keydown)="keydown($event, square.name)"
+                (click)="activate($event, square.name)"
+                (pointerdown)="beginPointer($event, square.name)">
+                @if (previewBoard()[square.index]; as piece) {
+                  <app-chess-piece [piece]="piece" />
+                }
+              </button>
+            </div>
           }
-        </button>
+        </div>
       }
     </div>
   </div>
