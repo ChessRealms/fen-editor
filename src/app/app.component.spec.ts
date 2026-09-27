@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppComponent } from './app.component';
+import { ClipboardService } from './clipboard.service';
 import { ChessBoardComponent } from './components/chess-board/chess-board.component';
 import { squareToIndex } from './domain/fen';
 
@@ -17,6 +18,8 @@ describe('FEN editor', () => {
     root = fixture.nativeElement as HTMLElement;
     await fixture.whenStable();
   });
+
+  afterEach(() => { vi.restoreAllMocks(); });
 
   function button(label: string): HTMLButtonElement {
     const element = Array.from(root.querySelectorAll('button')).find(candidate =>
@@ -41,6 +44,19 @@ describe('FEN editor', () => {
   async function applyDraft(text: string): Promise<void> {
     await editDraft(text);
     button('Apply FEN').click();
+    await fixture.whenStable();
+  }
+
+  function field(id: string): HTMLInputElement | HTMLSelectElement {
+    const element = root.querySelector<HTMLInputElement | HTMLSelectElement>('#' + id);
+    if (!element) throw new Error('Field missing: ' + id);
+    return element;
+  }
+
+  async function editField(id: string, value: string): Promise<void> {
+    const input = field(id);
+    input.value = value;
+    input.dispatchEvent(new Event(input.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
     await fixture.whenStable();
   }
 
@@ -322,6 +338,250 @@ describe('FEN editor', () => {
     await fixture.whenStable();
     expect(textarea('applied-fen').value).toBe(importedFen);
     expect(button('d4, empty')).toBeDefined();
+  });
+
+  it('synchronizes imported metadata controls and edits each field without changing pieces', async () => {
+    await applyDraft(importedFen);
+    const original = fixture.componentInstance.position();
+    expect(field('active-color').value).toBe('b');
+    expect(field('en-passant').value).toBe('a3');
+    expect(field('halfmoveClock').value).toBe('17');
+    expect(field('fullmoveNumber').value).toBe('42');
+    const rights = Array.from(root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+    expect(rights.map(input => input.checked)).toEqual([true, false, false, true]);
+    for (const right of rights) {
+      right.click();
+      await fixture.whenStable();
+    }
+    await editField('active-color', 'w');
+    await editField('en-passant', 'h6');
+    await editField('halfmoveClock', '0');
+    await editField('fullmoveNumber', '9007199254740991');
+    expect(textarea('applied-fen').value).toBe('r3k2r/8/8/8/8/8/4P3/R3K2R w Qk h6 0 9007199254740991');
+    expect(textarea('fen-draft').value).toBe(textarea('applied-fen').value);
+    expect(fixture.componentInstance.position().board).toEqual(original.board);
+    expect(original.activeColor).toBe('b');
+    expect(original.castling.whiteKingside).toBe(true);
+    expect(root.querySelector('.warnings')).not.toBeNull();
+    await editField('en-passant', '-');
+    expect(fixture.componentInstance.position().enPassant).toBeNull();
+    for (const right of rights.filter(input => input.checked)) {
+      right.click();
+      await fixture.whenStable();
+    }
+    expect(textarea('applied-fen').value).toContain(' w - - 0 9007199254740991');
+  });
+
+  it('retains FEN drafts and syntax errors across metadata edits until Apply replaces all fields', async () => {
+    await applyDraft('invalid FEN draft');
+    const errors = root.querySelector('#fen-errors')?.textContent;
+    await editField('active-color', 'b');
+    await editField('halfmoveClock', '25');
+    expect(textarea('fen-draft').value).toBe('invalid FEN draft');
+    expect(root.querySelector('#fen-errors')?.textContent).toBe(errors);
+    await editDraft(importedFen);
+    await editField('en-passant', 'h6');
+    expect(textarea('fen-draft').value).toBe(importedFen);
+    await editField('halfmoveClock', '');
+    await editField('fullmoveNumber', 'invalid');
+    button('Apply FEN').click();
+    await fixture.whenStable();
+    expect(textarea('applied-fen').value).toBe(importedFen);
+    expect(field('halfmoveClock').value).toBe('17');
+    expect(field('fullmoveNumber').value).toBe('42');
+    expect(root.querySelectorAll('input[aria-invalid="true"]')).toHaveLength(0);
+    expect(field('en-passant').value).toBe('a3');
+  });
+
+  it.each([
+    ['halfmoveClock', ''], ['halfmoveClock', '-1'], ['halfmoveClock', '1.5'],
+    ['halfmoveClock', '1e3'], ['halfmoveClock', '+2'], ['halfmoveClock', ' 2'],
+    ['halfmoveClock', 'text'], ['halfmoveClock', '9007199254740992'],
+    ['fullmoveNumber', ''], ['fullmoveNumber', '0'], ['fullmoveNumber', '-1'],
+    ['fullmoveNumber', '9007199254740992'],
+  ])('keeps invalid numeric draft local: %s = "%s"', async (id, value) => {
+    const original = fixture.componentInstance.position();
+    await editField(id, value);
+    expect(fixture.componentInstance.position()).toBe(original);
+    expect(field(id).value).toBe(value);
+    expect(field(id).getAttribute('aria-invalid')).toBe('true');
+    expect(field(id).getAttribute('aria-describedby')).toContain(id + '-error');
+    expect(root.querySelector('#' + id + '-error')?.textContent).toContain('whole number');
+    field(id).dispatchEvent(new Event('blur'));
+    field(id).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(field(id).value).toBe(value);
+    expect(textarea('applied-fen').value).toBe(startingFen);
+    field(id).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    expect(field(id).value).toBe(id === 'halfmoveClock' ? '0' : '1');
+    expect(field(id).hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it.each(['halfmoveClock', 'fullmoveNumber'])('commits %s immediately and canonicalizes only on blur/Enter', async id => {
+    await editField(id, '00012');
+    expect(field(id).value).toBe('00012');
+    expect(textarea('applied-fen').value).toBe(startingFen.replace('0 1', id === 'halfmoveClock' ? '12 1' : '0 12'));
+    field(id).dispatchEvent(new Event('blur'));
+    await fixture.whenStable();
+    expect(field(id).value).toBe('12');
+    await editField(id, '00025');
+    field(id).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(field(id).value).toBe('25');
+    await editField(id, '9007199254740991');
+    expect(field(id).hasAttribute('aria-invalid')).toBe(false);
+    expect(textarea('applied-fen').value).toContain('9007199254740991');
+    await editField(id, '');
+    field(id).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    expect(field(id).value).toBe('9007199254740991');
+  });
+
+  it('preserves numeric drafts across unrelated edits, failed Apply, Use current position and Flip', async () => {
+    await editField('halfmoveClock', '');
+    await editField('fullmoveNumber', '00042');
+    await editField('active-color', 'b');
+    button('Place white queen').click();
+    await fixture.whenStable();
+    button('e4, empty').click();
+    await fixture.whenStable();
+    await applyDraft('bad draft');
+    button('Use current position').click();
+    button('Flip board').click();
+    await fixture.whenStable();
+    expect(field('halfmoveClock').value).toBe('');
+    expect(field('halfmoveClock').getAttribute('aria-invalid')).toBe('true');
+    expect(field('fullmoveNumber').value).toBe('00042');
+    expect(textarea('applied-fen').value).toContain(' b KQkq - 0 42');
+  });
+
+  it.each([
+    ['Clear', '8/8/8/8/8/8/8/8 w - - 0 1'],
+    ['Starting position', startingFen],
+  ])('%s replaces all state, cancels gestures, restores Move and preserves orientation', async (command, expected) => {
+    await applyDraft(importedFen);
+    button('Flip board').click();
+    await applyDraft('bad draft');
+    await editField('halfmoveClock', '');
+    await editField('fullmoveNumber', 'bad');
+    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    button('e4, empty').dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    button(command).click();
+    await fixture.whenStable();
+    expect(textarea('applied-fen').value).toBe(expected);
+    expect(textarea('fen-draft').value).toBe(expected);
+    expect(root.querySelector('#fen-errors')).toBeNull();
+    expect(root.querySelector('.dragging')).toBeNull();
+    expect(root.querySelector('.drop-target')).toBeNull();
+    expect(root.querySelector('[data-square]')?.getAttribute('data-square')).toBe('h1');
+    expect(field('halfmoveClock').value).toBe('0');
+    expect(field('fullmoveNumber').value).toBe('1');
+    expect(root.querySelectorAll('input[aria-invalid="true"]')).toHaveLength(0);
+    expect(root.querySelectorAll('.warnings li')).toHaveLength(command === 'Clear' ? 2 : 0);
+    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    expect(textarea('applied-fen').value).toBe(expected);
+    button('Place white queen').click();
+    await fixture.whenStable();
+    button('e4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
+    button('Place white queen').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    button(command).click();
+    await fixture.whenStable();
+    expect(button('Move').getAttribute('aria-pressed')).toBe('true');
+    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    button('Place white queen').click();
+    await fixture.whenStable();
+    button('d4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
+    await fixture.whenStable();
+    expect(textarea('applied-fen').value).toBe(expected);
+  });
+
+  it('flips display only and cancels board/palette dragging and further painting', async () => {
+    await applyDraft('bad FEN');
+    await editField('halfmoveClock', '');
+    const original = fixture.componentInstance.position();
+    const errors = root.querySelector('#fen-errors')?.textContent;
+    button('e2, white pawn').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    button('e4, empty').dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    button('Flip board').click();
+    await fixture.whenStable();
+    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    expect(fixture.componentInstance.position()).toBe(original);
+    expect(textarea('fen-draft').value).toBe('bad FEN');
+    expect(root.querySelector('#fen-errors')?.textContent).toBe(errors);
+    expect(field('halfmoveClock').value).toBe('');
+    expect(root.querySelector('.dragging')).toBeNull();
+    expect(root.querySelector('.drop-target')).toBeNull();
+    expect(root.querySelector('[data-square]')?.getAttribute('data-square')).toBe('h1');
+    button('Place white queen').dispatchEvent(new Event('dragstart', { bubbles: true }));
+    button('Flip board').click();
+    await fixture.whenStable();
+    button('e4, empty').dispatchEvent(new Event('drop', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    expect(fixture.componentInstance.position()).toBe(original);
+    button('Place white queen').click();
+    await fixture.whenStable();
+    button('e4, empty').dispatchEvent(new MouseEvent('mousedown', { button: 0, buttons: 1 }));
+    await fixture.whenStable();
+    const painted = fixture.componentInstance.position();
+    button('Flip board').click();
+    await fixture.whenStable();
+    button('d4, empty').dispatchEvent(new MouseEvent('mouseenter', { buttons: 1 }));
+    await fixture.whenStable();
+    expect(fixture.componentInstance.position()).toBe(painted);
+    expect(button('Place white queen').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('copies the canonical applied FEN and announces success only after the write resolves', async () => {
+    let complete!: () => void;
+    const write = new Promise<void>(resolve => { complete = resolve; });
+    const copy = vi.spyOn(TestBed.inject(ClipboardService), 'writeText').mockReturnValue(write);
+    await editDraft(importedFen);
+    await editField('halfmoveClock', '');
+    button('Copy applied FEN').click();
+    await fixture.whenStable();
+    expect(copy).toHaveBeenCalledExactlyOnceWith(startingFen);
+    expect(root.querySelector('#copy-status')?.textContent).toBe('');
+    expect(button('Copy applied FEN').disabled).toBe(true);
+    complete();
+    await write;
+    await fixture.whenStable();
+    expect(root.querySelector('#copy-status')?.textContent).toContain('Applied FEN copied.');
+    expect(button('Copy applied FEN').disabled).toBe(false);
+    expect(textarea('fen-draft').value).toBe(importedFen);
+    expect(field('halfmoveClock').value).toBe('');
+  });
+
+  it('selects applied FEN for manual copying when a write fails and permits retry', async () => {
+    const copy = vi.spyOn(TestBed.inject(ClipboardService), 'writeText').mockRejectedValue(new Error('Denied'));
+    button('Copy applied FEN').click();
+    await fixture.whenStable();
+    expect(root.querySelector('#copy-status')?.textContent).toContain('Copy failed');
+    expect(textarea('applied-fen').selectionStart).toBe(0);
+    expect(textarea('applied-fen').selectionEnd).toBe(startingFen.length);
+    expect(button('Copy applied FEN').disabled).toBe(false);
+    copy.mockResolvedValue();
+    button('Copy applied FEN').click();
+    await fixture.whenStable();
+    expect(root.querySelector('#copy-status')?.textContent).toContain('Applied FEN copied.');
+  });
+
+  it.each(['resolve', 'reject'] as const)('does not report stale clipboard %s results as belonging to a changed position', async outcome => {
+    let complete!: () => void;
+    let fail!: (error: Error) => void;
+    const write = new Promise<void>((resolve, reject) => { complete = resolve; fail = reject; });
+    vi.spyOn(TestBed.inject(ClipboardService), 'writeText').mockReturnValue(write);
+    button('Copy applied FEN').click();
+    await fixture.whenStable();
+    await editField('active-color', 'b');
+    if (outcome === 'resolve') complete();
+    else fail(new Error('Denied'));
+    await write.catch(() => undefined);
+    await fixture.whenStable();
+    expect(root.querySelector('#copy-status')?.textContent).toBe('');
+    expect(button('Copy applied FEN').disabled).toBe(false);
   });
 });
 

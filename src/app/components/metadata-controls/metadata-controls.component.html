@@ -1,0 +1,52 @@
+<section aria-labelledby="metadata-heading">
+  <h2 id="metadata-heading">Position details</h2>
+  <p id="metadata-help" class="hint">Changes apply immediately. They do not move pieces or advance the game.</p>
+  <div class="fields">
+    <div class="field">
+      <label for="active-color">Active color</label>
+      <select #activeColor id="active-color" [value]="metadata().activeColor"
+        (change)="setActiveColor(activeColor.value)">
+        <option value="w">White to move</option>
+        <option value="b">Black to move</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="en-passant">En passant target</label>
+      <select #enPassant id="en-passant" [value]="metadata().enPassant ?? '-'"
+        (change)="setEnPassant(enPassant.value)">
+        <option value="-">None (-)</option>
+        @for (square of enPassantSquares; track square) {
+          <option [value]="square">{{ square }}</option>
+        }
+      </select>
+    </div>
+  </div>
+  <fieldset>
+    <legend>Castling rights</legend>
+    <div class="fields">
+      @for (option of castlingOptions; track option.key) {
+        <label class="checkbox">
+          <input #right type="checkbox" [checked]="metadata().castling[option.key]"
+            (change)="setCastling(option.key, right.checked)" />
+          {{ option.label }}
+        </label>
+      }
+    </div>
+  </fieldset>
+  <div class="fields">
+    @for (counter of counters; track counter.key) {
+      <div class="field">
+        <label [for]="counter.key">{{ counter.label }}</label>
+        <input #numberInput [id]="counter.key" type="text" inputmode="numeric" autocomplete="off"
+          [value]="counterText(counter.key)" (input)="editCounter(counter.key, numberInput.value)"
+          (blur)="canonicalizeCounter(counter.key)" (keydown)="counterKeydown($event, counter.key)"
+          [attr.aria-invalid]="counterError(counter.key) ? 'true' : null"
+          [attr.aria-describedby]="counterError(counter.key) ? 'counter-help ' + counter.key + '-error' : 'counter-help'" />
+        @if (counterError(counter.key); as error) {
+          <p class="error" [id]="counter.key + '-error'">{{ error }}</p>
+        }
+      </div>
+    }
+  </div>
+  <p id="counter-help" class="hint">Halfmove counts plies since a pawn move or capture; fullmove starts at 1. Invalid numbers stay unapplied. Escape restores the applied value.</p>
+</section>
