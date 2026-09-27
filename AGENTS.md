@@ -8,6 +8,7 @@
 
 - Keep Angular components standalone and zoneless. Use signals/computed for local state, signal inputs/outputs at component boundaries and modern template control flow. Avoid duplicate state synchronized by reciprocal effects.
 - Keep FEN parsing, validation and immutable position operations independent of Angular and browser APIs. Board composition must preserve metadata; syntax errors and chess plausibility warnings have different consequences (see roadmap).
+- Keep all FEN domain types, parsing, serialization, warnings and immutable operations in `src/app/domain/fen/`. PR-03 adds/tests this core; UI integration and removal of the legacy model/parser adapter belong to PR-04.
 - Prefer focused changes and native controls. Add dependencies only for a concrete need; do not reintroduce Router, Zone.js or a state library without a task requirement.
 - Use the Node version in `.node-version`/`.nvmrc` and npm version in `package.json`. Keep both Node pins and the CI npm pin aligned when changing runtime versions. Update dependencies through npm and include the regenerated lockfile with the manifest change; do not hand-edit resolutions or bypass peer conflicts with force flags.
 - Follow `.editorconfig` and ESLint. SVGs belong in `public/assets/`; temporary experiments and raw reports belong in ignored `tmp/` or CI artifacts.
@@ -18,4 +19,5 @@
 - Test observable behavior and regressions. Use Angular TestBed with zoneless scheduling (`await fixture.whenStable()`); do not routinely force change detection to conceal missing notifications. Use Playwright for actual browser interaction and geometry.
 - Documentation/ignore-only changes need link, whitespace and `git check-ignore` checks; do not rerun the application suite solely for prose changes. Keep source, config, fixtures and lockfiles visible to Git.
 - Keep README for getting started, roadmap for remaining work and product decisions, and tests for implemented edge cases. Update these existing files instead of adding per-PR reports, duplicated API descriptions or version/audit snapshots. Remove completed implementation detail from the roadmap once tests cover it; retain concise product boundaries.
+- After a stage meets its acceptance criteria and required checks pass, mark it `complete` in the roadmap and move `next` to the following unfinished stage. This status update does not authorize starting that stage.
 - Report what changed, checks performed and any unverified limits. Propose a commit title and PR title in the final response; never claim a remote CI result from local checks.
